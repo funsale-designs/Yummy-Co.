@@ -103,7 +103,7 @@
                     <input type="text" id="newItemName" placeholder="e.g., Tomatoes" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
                 </div>
                  <div class="flex flex-col">
-                    <label class="text-gray-600 font-medium">Price ($)</label>
+                    <label class="text-gray-600 font-medium">Price (R)</label>
                     <input type="number" step="0.01" id="newItemPrice" value="1.00" min="0" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
                 </div>
                 <div class="flex flex-col">
@@ -206,9 +206,9 @@
     
     // Initial prices for existing items. New items will have prices set via the admin panel.
     const initialPrices = {
-        Apples: 0.50,
-        Bananas: 0.30,
-        Oranges: 0.40,
+        Apples: 5.50,
+        Bananas: 3.30,
+        Oranges: 4.40,
     };
 
     const initialRecipes = {
@@ -265,7 +265,7 @@
                 totalValue += qty * itemPrice;
                 table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td>`;
                 if (document.getElementById('adminPanel').classList.contains('active-page')) {
-                    table += `<td class="p-2 border">$${itemPrice.toFixed(2)}</td>`;
+                    table += `<td class="p-2 border">R${itemPrice.toFixed(2)}</td>`;
                     table += `<td class="p-2 border"><button onclick="editItem('${key}','${item}')" class="bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600 transition">Edit</button></td>`;
                     table += `<td class="p-2 border"><button onclick="removeItem('${key}','${item}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded hover:bg-red-600 transition">Remove</button></td>`;
                 }
@@ -273,7 +273,7 @@
                 allItems.add(item);
             }
             table += `</tbody></table>`;
-            table += `<div class="mt-2 text-center text-gray-700 font-bold">Total Value: $${totalValue.toFixed(2)}</div>`;
+            table += `<div class="mt-2 text-center text-gray-700 font-bold">Total Value: R${totalValue.toFixed(2)}</div>`;
             kitchenDiv.innerHTML = table;
             container.appendChild(kitchenDiv);
         }
@@ -317,7 +317,7 @@
         stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
         prices[itemName] = itemPrice;
 
-        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen} at a price of $${itemPrice.toFixed(2)}`);
+        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen} at a price of R${itemPrice.toFixed(2)}`);
         saveData();
         renderKitchens();
         document.getElementById('newItemName').value = '';
@@ -455,7 +455,7 @@
                 const color = isAvailable ? 'text-green-600' : 'text-red-600';
                 const itemPrice = prices[item] || 0;
                 const itemCost = (itemPrice * qty).toFixed(2);
-                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty}) - $${itemCost}</span></li>`;
+                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty}) - R${itemCost}</span></li>`;
             }).join('');
             
             let canMakeRecipe = true;
@@ -470,7 +470,7 @@
             recipeDiv.innerHTML = `
                 <div class="flex flex-col sm:flex-row justify-between items-center mb-2">
                     <h4 class="text-lg font-semibold text-gray-700">${recipe.name}</h4>
-                    <span class="text-gray-600 font-medium">Cost: $${recipe.cost}</span>
+                    <span class="text-gray-600 font-medium">Cost: R${recipe.cost}</span>
                 </div>
                 <ul class="list-disc list-inside space-y-1">
                     ${ingredientsList}
