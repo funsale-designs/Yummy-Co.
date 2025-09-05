@@ -3,29 +3,33 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kitchen Stock</title>
+<title>Kitchen Stock Management</title>
 <style>
-  body { font-family: Arial; padding: 20px; background: #f5f5f5; }
-  .kitchen { display: inline-block; vertical-align: top; margin: 10px; padding: 10px; background: #fff; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
-  table { border-collapse: collapse; width: 150px; }
+  body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
+  h1 { text-align: center; color: #333; }
+  .kitchens { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
+  .kitchen { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 0 8px rgba(0,0,0,0.15); width: 220px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
   th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
-  .transfer { margin-top: 20px; }
+  .controls { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 0 8px rgba(0,0,0,0.15); margin: 20px auto 0; max-width: 700px; }
+  .controls label { margin-right: 10px; }
+  select, input { padding: 5px; margin-right: 10px; border-radius: 5px; border: 1px solid #ccc; }
+  button { padding: 6px 12px; border-radius: 6px; border: none; background: #007bff; color: #fff; cursor: pointer; }
+  button:hover { background: #0056b3; }
+  #adminPanel { display: none; }
+  .audit-log { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-top: 10px; background: #fafafa; }
 </style>
 </head>
 <body>
 
 <h1>Kitchen Stock Management</h1>
 
-<div id="kitchens"></div>
+<div class="kitchens" id="kitchens"></div>
 
-<div class="transfer">
+<div class="controls">
   <h3>Transfer Stock</h3>
   <label>Item:
-    <select id="item">
-      <option>Apples</option>
-      <option>Bananas</option>
-      <option>Oranges</option>
-    </select>
+    <select id="item"></select>
   </label>
   <label>From:
     <select id="from">
@@ -45,29 +49,83 @@
   <button onclick="transferStock()">Transfer</button>
 </div>
 
+<div id="adminPanel" class="controls">
+  <h3>Admin Panel</h3>
+
+  <h4>Add New Item</h4>
+  <label>Item Name: <input type="text" id="newItemName" placeholder="e.g., Tomatoes"></label>
+  <label>Quantity: <input type="number" id="newItemQty" value="1" min="1"></label>
+  <label>Kitchen:
+    <select id="newItemKitchen">
+      <option value="yummyCo">Yummy Co</option>
+      <option value="keFi">Ke-fi</option>
+      <option value="yummyFrail">Yummy Frail</option>
+    </select>
+  </label>
+  <button onclick="addItem()">Add Item</button>
+
+  <h4>Reset Stock</h4>
+  <button onclick="resetStock()">Reset Stock</button>
+
+  <h4>Audit Log</h4>
+  <div class="audit-log" id="auditLog"></div>
+</div>
+
+<div class="controls" style="text-align:center; margin-top: 10px;">
+  <button onclick="loginAdmin()">Admin Login</button>
+</div>
+
 <script>
-const stock = {
+const ADMIN_PASSWORD = "1234"; // Admin password
+const initialStock = {
   yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
   keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
   yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 }
 };
 
+// Load stock and audit log from localStorage
+const stock = JSON.parse(localStorage.getItem('stock')) || JSON.parse(JSON.stringify(initialStock));
+const auditLog = JSON.parse(localStorage.getItem('auditLog')) || [];
+
+function saveData() {
+  localStorage.setItem('stock', JSON.stringify(stock));
+  localStorage.setItem('auditLog', JSON.stringify(auditLog));
+}
+
 function renderKitchens() {
   const container = document.getElementById('kitchens');
   container.innerHTML = '';
+  const transferSelect = document.getElementById('item');
+  transferSelect.innerHTML = '';
+
   for (const [key, items] of Object.entries(stock)) {
     const kitchenDiv = document.createElement('div');
     kitchenDiv.className = 'kitchen';
     let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
-    kitchenDiv.innerHTML = `<h3>${title}</h3>`;
-    let table = '<table><tr><th>Item</th><th>Stock</th></tr>';
+    let table = `<h3>${title}</h3><table><tr><th>Item</th><th>Stock</th>`;
+    table += document.getElementById('adminPanel').style.display === 'block' ? '<th>Edit</th><th>Remove</th>' : '';
+    table += '</tr>';
+
     for (const [item, qty] of Object.entries(items)) {
-      table += `<tr><td>${item}</td><td>${qty}</td></tr>`;
+      table += `<tr><td>${item}</td><td>${qty}</td>`;
+      if (document.getElementById('adminPanel').style.display === 'block') {
+        table += `<td><button onclick="editItem('${key}','${item}')">Edit</button></td>`;
+        table += `<td><button onclick="removeItem('${key}','${item}')">Remove</button></td>`;
+      }
+      table += '</tr>';
+      if (![...transferSelect.options].some(opt => opt.value === item)) {
+        const option = document.createElement('option');
+        option.value = item;
+        option.text = item;
+        transferSelect.add(option);
+      }
     }
     table += '</table>';
-    kitchenDiv.innerHTML += table;
+    kitchenDiv.innerHTML = table;
     container.appendChild(kitchenDiv);
   }
+
+  renderAuditLog();
 }
 
 function transferStock() {
@@ -77,13 +135,80 @@ function transferStock() {
   const qty = parseInt(document.getElementById('quantity').value);
 
   if (from === to) { alert('Choose different kitchens'); return; }
+  if (!stock[from][item]) { alert(`${item} does not exist in ${from}`); return; }
   if (stock[from][item] < qty) { alert('Not enough stock'); return; }
 
   stock[from][item] -= qty;
-  stock[to][item] += qty;
+  stock[to][item] = (stock[to][item] || 0) + qty;
+
+  auditLog.push(`${new Date().toLocaleString()}: Transferred ${qty} ${item} from ${from} to ${to}`);
+  saveData();
   renderKitchens();
 }
 
+function addItem() {
+  const itemName = document.getElementById('newItemName').value.trim();
+  const qty = parseInt(document.getElementById('newItemQty').value);
+  const kitchen = document.getElementById('newItemKitchen').value;
+
+  if (!itemName || qty < 1) { alert('Enter valid name and quantity'); return; }
+
+  stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
+  auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen}`);
+  saveData();
+  renderKitchens();
+  document.getElementById('newItemName').value = '';
+  document.getElementById('newItemQty').value = 1;
+}
+
+function resetStock() {
+  for (const key in stock) {
+    stock[key] = { ...initialStock[key] };
+  }
+  auditLog.push(`${new Date().toLocaleString()}: Stock reset by admin`);
+  saveData();
+  renderKitchens();
+  alert("Stock has been reset!");
+}
+
+function loginAdmin() {
+  const password = prompt("Enter admin password:");
+  if (password === ADMIN_PASSWORD) {
+    document.getElementById('adminPanel').style.display = 'block';
+    renderKitchens();
+    alert("Admin mode enabled!");
+  } else {
+    alert("Incorrect password!");
+  }
+}
+
+function editItem(kitchen, item) {
+  const newQty = parseInt(prompt(`Enter new quantity for ${item} in ${kitchen}:`, stock[kitchen][item]));
+  if (!isNaN(newQty) && newQty >= 0) {
+    const oldQty = stock[kitchen][item];
+    stock[kitchen][item] = newQty;
+    auditLog.push(`${new Date().toLocaleString()}: Edited ${item} in ${kitchen} from ${oldQty} to ${newQty}`);
+    saveData();
+    renderKitchens();
+  }
+}
+
+function removeItem(kitchen, item) {
+  if (confirm(`Are you sure you want to remove ${item} from ${kitchen}?`)) {
+    delete stock[kitchen][item];
+    auditLog.push(`${new Date().toLocaleString()}: Removed ${item} from ${kitchen}`);
+    saveData();
+    renderKitchens();
+  }
+}
+
+function renderAuditLog() {
+  const container = document.getElementById('auditLog');
+  if (!container) return;
+  container.innerHTML = auditLog.slice().reverse().map(entry => `<div>${entry}</div>`).join('');
+}
+
+// Initialize
 renderKitchens();
 </script>
 
