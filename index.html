@@ -102,6 +102,10 @@
                     <label class="text-gray-600 font-medium">Item Name</label>
                     <input type="text" id="newItemName" placeholder="e.g., Tomatoes" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
                 </div>
+                 <div class="flex flex-col">
+                    <label class="text-gray-600 font-medium">Price ($)</label>
+                    <input type="number" step="0.01" id="newItemPrice" value="1.00" min="0" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
                 <div class="flex flex-col">
                     <label class="text-gray-600 font-medium">Quantity</label>
                     <input type="number" id="newItemQty" value="1" min="1" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
@@ -184,7 +188,7 @@
 <script>
     // Custom message modal functions
     function showMessage(message) {
-        document.getElementById('modalContent').innerText = message;
+        document.getElementById('modalContent').innerHTML = message;
         document.getElementById('messageModal').classList.remove('hidden');
     }
 
@@ -199,6 +203,13 @@
         keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
         yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 }
     };
+    
+    // Initial prices for existing items. New items will have prices set via the admin panel.
+    const initialPrices = {
+        Apples: 0.50,
+        Bananas: 0.30,
+        Oranges: 0.40,
+    };
 
     const initialRecipes = {
         yummyCo: [],
@@ -210,11 +221,13 @@
     const stock = JSON.parse(localStorage.getItem('stock')) || JSON.parse(JSON.stringify(initialStock));
     const auditLog = JSON.parse(localStorage.getItem('auditLog')) || [];
     const recipes = JSON.parse(localStorage.getItem('recipes')) || JSON.parse(JSON.stringify(initialRecipes));
+    const prices = JSON.parse(localStorage.getItem('prices')) || JSON.parse(JSON.stringify(initialPrices));
 
     function saveData() {
         localStorage.setItem('stock', JSON.stringify(stock));
         localStorage.setItem('auditLog', JSON.stringify(auditLog));
         localStorage.setItem('recipes', JSON.stringify(recipes));
+        localStorage.setItem('prices', JSON.stringify(prices));
     }
 
     function showPage(pageId) {
@@ -222,11 +235,12 @@
             page.classList.remove('active-page');
         });
         document.getElementById(pageId).classList.add('active-page');
-        // Rerender recipes for the new page
-        if (pageId !== 'home') {
+        
+        if (pageId.includes('yummy')) {
             renderRecipes(pageId);
+        } else {
+            renderKitchens();
         }
-        renderKitchens();
     }
 
     function renderKitchens() {
@@ -237,17 +251,21 @@
         const allItems = new Set();
 
         for (const [key, items] of Object.entries(stock)) {
+            let totalValue = 0;
             const kitchenDiv = document.createElement('div');
             kitchenDiv.className = 'kitchen bg-gray-50 rounded-xl p-4 shadow-md w-full sm:w-64';
             let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
             let table = `<h3 class="text-center font-bold text-lg mb-2 text-gray-700">${title}</h3><table class="w-full text-sm">`;
             table += `<thead class="bg-gray-200"><tr><th class="p-2 border rounded-tl-md">Item</th><th class="p-2">Stock</th>`;
-            table += document.getElementById('adminPanel').classList.contains('active-page') ? '<th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>' : '</tr></thead>';
+            table += document.getElementById('adminPanel').classList.contains('active-page') ? '<th class="p-2">Price</th><th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>' : '</tr></thead>';
             table += '<tbody>';
 
             for (const [item, qty] of Object.entries(items)) {
+                const itemPrice = prices[item] || 0;
+                totalValue += qty * itemPrice;
                 table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td>`;
                 if (document.getElementById('adminPanel').classList.contains('active-page')) {
+                    table += `<td class="p-2 border">$${itemPrice.toFixed(2)}</td>`;
                     table += `<td class="p-2 border"><button onclick="editItem('${key}','${item}')" class="bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600 transition">Edit</button></td>`;
                     table += `<td class="p-2 border"><button onclick="removeItem('${key}','${item}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded hover:bg-red-600 transition">Remove</button></td>`;
                 }
@@ -255,6 +273,7 @@
                 allItems.add(item);
             }
             table += `</tbody></table>`;
+            table += `<div class="mt-2 text-center text-gray-700 font-bold">Total Value: $${totalValue.toFixed(2)}</div>`;
             kitchenDiv.innerHTML = table;
             container.appendChild(kitchenDiv);
         }
@@ -286,16 +305,23 @@
 
     function addItem() {
         const itemName = document.getElementById('newItemName').value.trim();
+        const itemPrice = parseFloat(document.getElementById('newItemPrice').value);
         const qty = parseInt(document.getElementById('newItemQty').value);
         const kitchen = document.getElementById('newItemKitchen').value;
 
-        if (!itemName || qty < 1) { showMessage('Enter valid name and quantity.'); return; }
+        if (!itemName || isNaN(itemPrice) || itemPrice < 0 || isNaN(qty) || qty < 1) { 
+            showMessage('Please enter a valid item name, price, and quantity.'); 
+            return; 
+        }
 
         stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
-        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen}`);
+        prices[itemName] = itemPrice;
+
+        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen} at a price of $${itemPrice.toFixed(2)}`);
         saveData();
         renderKitchens();
         document.getElementById('newItemName').value = '';
+        document.getElementById('newItemPrice').value = '1.00';
         document.getElementById('newItemQty').value = 1;
         showMessage('Item added successfully!');
     }
@@ -305,6 +331,9 @@
         if (isConfirmed === 'RESET') {
             for (const key in stock) {
                 stock[key] = { ...initialStock[key] };
+            }
+            for (const item in initialPrices) {
+                prices[item] = initialPrices[item];
             }
             auditLog.push(`${new Date().toLocaleString()}: Stock reset by admin`);
             saveData();
@@ -344,6 +373,7 @@
         const isConfirmed = prompt(`Are you sure you want to remove ${item} from ${kitchen}? Type 'REMOVE' to confirm.`);
         if (isConfirmed === 'REMOVE') {
             delete stock[kitchen][item];
+            delete prices[item];
             auditLog.push(`${new Date().toLocaleString()}: Removed ${item} from ${kitchen}`);
             saveData();
             renderKitchens();
@@ -369,6 +399,7 @@
         }
 
         const ingredients = {};
+        let recipeCost = 0;
         const ingredientLines = ingredientsText.split(',').map(s => s.trim()).filter(s => s);
         let isValid = true;
         
@@ -379,6 +410,9 @@
                 const qty = parseInt(parts[1].trim());
                 if (!isNaN(qty) && qty > 0) {
                     ingredients[item] = qty;
+                    // Add to recipe cost if item has a price
+                    const itemPrice = prices[item] || 0;
+                    recipeCost += itemPrice * qty;
                 } else {
                     isValid = false;
                     break;
@@ -394,7 +428,7 @@
             return;
         }
 
-        recipes[kitchenId].push({ name: recipeName, ingredients });
+        recipes[kitchenId].push({ name: recipeName, ingredients, cost: recipeCost.toFixed(2) });
         saveData();
         renderRecipes(kitchenId);
         document.getElementById(`${kitchenId}RecipeName`).value = '';
@@ -419,47 +453,54 @@
                 const stockQty = stock[kitchenId][item] || 0;
                 const isAvailable = stockQty >= qty;
                 const color = isAvailable ? 'text-green-600' : 'text-red-600';
-                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty})</span></li>`;
+                const itemPrice = prices[item] || 0;
+                const itemCost = (itemPrice * qty).toFixed(2);
+                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty}) - $${itemCost}</span></li>`;
             }).join('');
+            
+            let canMakeRecipe = true;
+            for(const [item, requiredQty] of Object.entries(recipe.ingredients)) {
+                if((stock[kitchenId][item] || 0) < requiredQty) {
+                    canMakeRecipe = false;
+                    break;
+                }
+            }
+            const availabilityMessage = canMakeRecipe ? '✅ You can make this!' : '❌ Not enough stock!';
 
             recipeDiv.innerHTML = `
-                <div class="flex justify-between items-start mb-2">
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-2">
                     <h4 class="text-lg font-semibold text-gray-700">${recipe.name}</h4>
-                    <button onclick="checkStock('${kitchenId}', ${index})" class="bg-purple-600 text-white px-3 py-1 rounded-md text-sm hover:bg-purple-700 transition duration-300">Check Stock</button>
+                    <span class="text-gray-600 font-medium">Cost: $${recipe.cost}</span>
                 </div>
                 <ul class="list-disc list-inside space-y-1">
                     ${ingredientsList}
                 </ul>
+                <div class="mt-4 font-bold text-center">${availabilityMessage}</div>
+                <div class="flex justify-end mt-4">
+                    <button onclick="deleteRecipe('${kitchenId}', ${index})" class="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition duration-300">Delete</button>
+                </div>
             `;
             container.appendChild(recipeDiv);
         });
     }
 
     function checkStock(kitchenId, recipeIndex) {
-        const recipe = recipes[kitchenId][recipeIndex];
-        let canMake = true;
-        let missingItems = [];
+        // This function is now redundant as availability is calculated and displayed directly
+        // on the recipe card.
+    }
 
-        for (const [item, requiredQty] of Object.entries(recipe.ingredients)) {
-            const availableQty = stock[kitchenId][item] || 0;
-            if (availableQty < requiredQty) {
-                canMake = false;
-                missingItems.push(`${item} (need ${requiredQty - availableQty} more)`);
-            }
-        }
-
-        if (canMake) {
-            showMessage(`You have enough stock to make "${recipe.name}"!`);
-        } else {
-            const message = `You do not have enough stock to make "${recipe.name}". Missing: <br>${missingItems.join('<br>')}`;
-            showMessage(message);
-        }
+    function deleteRecipe(kitchenId, recipeIndex) {
+        const recipeName = recipes[kitchenId][recipeIndex].name;
+        recipes[kitchenId].splice(recipeIndex, 1);
+        saveData();
+        renderRecipes(kitchenId);
+        showMessage(`Recipe "${recipeName}" deleted.`);
     }
 
     // Initial render
     window.onload = function() {
         renderKitchens();
-        showPage('home'); // Ensure home page is shown on load
+        showPage('home');
     }
 </script>
 </body>
