@@ -3,214 +3,464 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Kitchen Stock Management</title>
-<style>
-  body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 20px; }
-  h1 { text-align: center; color: #333; }
-  .kitchens { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; margin-top: 20px; }
-  .kitchen { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 0 8px rgba(0,0,0,0.15); width: 220px; }
-  table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
-  .controls { background: #fff; border-radius: 12px; padding: 15px; box-shadow: 0 0 8px rgba(0,0,0,0.15); margin: 20px auto 0; max-width: 700px; }
-  .controls label { margin-right: 10px; }
-  select, input { padding: 5px; margin-right: 10px; border-radius: 5px; border: 1px solid #ccc; }
-  button { padding: 6px 12px; border-radius: 6px; border: none; background: #007bff; color: #fff; cursor: pointer; }
-  button:hover { background: #0056b3; }
-  #adminPanel { display: none; }
-  .audit-log { max-height: 150px; overflow-y: auto; border: 1px solid #ccc; padding: 5px; margin-top: 10px; background: #fafafa; }
-</style>
-</head>
-<body>
-
-<h1>Kitchen Stock Management</h1>
-
-<div class="kitchens" id="kitchens"></div>
-
-<div class="controls">
-  <h3>Transfer Stock</h3>
-  <label>Item:
-    <select id="item"></select>
-  </label>
-  <label>From:
-    <select id="from">
-      <option value="yummyCo">Yummy Co</option>
-      <option value="keFi">Ke-fi</option>
-      <option value="yummyFrail">Yummy Frail</option>
-    </select>
-  </label>
-  <label>To:
-    <select id="to">
-      <option value="yummyCo">Yummy Co</option>
-      <option value="keFi">Ke-fi</option>
-      <option value="yummyFrail">Yummy Frail</option>
-    </select>
-  </label>
-  <label>Qty: <input type="number" id="quantity" value="1" min="1"></label>
-  <button onclick="transferStock()">Transfer</button>
-</div>
-
-<div id="adminPanel" class="controls">
-  <h3>Admin Panel</h3>
-
-  <h4>Add New Item</h4>
-  <label>Item Name: <input type="text" id="newItemName" placeholder="e.g., Tomatoes"></label>
-  <label>Quantity: <input type="number" id="newItemQty" value="1" min="1"></label>
-  <label>Kitchen:
-    <select id="newItemKitchen">
-      <option value="yummyCo">Yummy Co</option>
-      <option value="keFi">Ke-fi</option>
-      <option value="yummyFrail">Yummy Frail</option>
-    </select>
-  </label>
-  <button onclick="addItem()">Add Item</button>
-
-  <h4>Reset Stock</h4>
-  <button onclick="resetStock()">Reset Stock</button>
-
-  <h4>Audit Log</h4>
-  <div class="audit-log" id="auditLog"></div>
-</div>
-
-<div class="controls" style="text-align:center; margin-top: 10px;">
-  <button onclick="loginAdmin()">Admin Login</button>
-</div>
-
+<title>Kitchen Stock Manager</title>
+<script src="https://cdn.tailwindcss.com"></script>
 <script>
-const ADMIN_PASSWORD = "1234"; // Admin password
-const initialStock = {
-  yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
-  keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
-  yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 }
-};
-
-// Load stock and audit log from localStorage
-const stock = JSON.parse(localStorage.getItem('stock')) || JSON.parse(JSON.stringify(initialStock));
-const auditLog = JSON.parse(localStorage.getItem('auditLog')) || [];
-
-function saveData() {
-  localStorage.setItem('stock', JSON.stringify(stock));
-  localStorage.setItem('auditLog', JSON.stringify(auditLog));
-}
-
-function renderKitchens() {
-  const container = document.getElementById('kitchens');
-  container.innerHTML = '';
-  const transferSelect = document.getElementById('item');
-  transferSelect.innerHTML = '';
-
-  for (const [key, items] of Object.entries(stock)) {
-    const kitchenDiv = document.createElement('div');
-    kitchenDiv.className = 'kitchen';
-    let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
-    let table = `<h3>${title}</h3><table><tr><th>Item</th><th>Stock</th>`;
-    table += document.getElementById('adminPanel').style.display === 'block' ? '<th>Edit</th><th>Remove</th>' : '';
-    table += '</tr>';
-
-    for (const [item, qty] of Object.entries(items)) {
-      table += `<tr><td>${item}</td><td>${qty}</td>`;
-      if (document.getElementById('adminPanel').style.display === 'block') {
-        table += `<td><button onclick="editItem('${key}','${item}')">Edit</button></td>`;
-        table += `<td><button onclick="removeItem('${key}','${item}')">Remove</button></td>`;
-      }
-      table += '</tr>';
-      if (![...transferSelect.options].some(opt => opt.value === item)) {
-        const option = document.createElement('option');
-        option.value = item;
-        option.text = item;
-        transferSelect.add(option);
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+          },
+        }
       }
     }
-    table += '</table>';
-    kitchenDiv.innerHTML = table;
-    container.appendChild(kitchenDiv);
-  }
-
-  renderAuditLog();
-}
-
-function transferStock() {
-  const item = document.getElementById('item').value;
-  const from = document.getElementById('from').value;
-  const to = document.getElementById('to').value;
-  const qty = parseInt(document.getElementById('quantity').value);
-
-  if (from === to) { alert('Choose different kitchens'); return; }
-  if (!stock[from][item]) { alert(`${item} does not exist in ${from}`); return; }
-  if (stock[from][item] < qty) { alert('Not enough stock'); return; }
-
-  stock[from][item] -= qty;
-  stock[to][item] = (stock[to][item] || 0) + qty;
-
-  auditLog.push(`${new Date().toLocaleString()}: Transferred ${qty} ${item} from ${from} to ${to}`);
-  saveData();
-  renderKitchens();
-}
-
-function addItem() {
-  const itemName = document.getElementById('newItemName').value.trim();
-  const qty = parseInt(document.getElementById('newItemQty').value);
-  const kitchen = document.getElementById('newItemKitchen').value;
-
-  if (!itemName || qty < 1) { alert('Enter valid name and quantity'); return; }
-
-  stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
-  auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen}`);
-  saveData();
-  renderKitchens();
-  document.getElementById('newItemName').value = '';
-  document.getElementById('newItemQty').value = 1;
-}
-
-function resetStock() {
-  for (const key in stock) {
-    stock[key] = { ...initialStock[key] };
-  }
-  auditLog.push(`${new Date().toLocaleString()}: Stock reset by admin`);
-  saveData();
-  renderKitchens();
-  alert("Stock has been reset!");
-}
-
-function loginAdmin() {
-  const password = prompt("Enter admin password:");
-  if (password === ADMIN_PASSWORD) {
-    document.getElementById('adminPanel').style.display = 'block';
-    renderKitchens();
-    alert("Admin mode enabled!");
-  } else {
-    alert("Incorrect password!");
-  }
-}
-
-function editItem(kitchen, item) {
-  const newQty = parseInt(prompt(`Enter new quantity for ${item} in ${kitchen}:`, stock[kitchen][item]));
-  if (!isNaN(newQty) && newQty >= 0) {
-    const oldQty = stock[kitchen][item];
-    stock[kitchen][item] = newQty;
-    auditLog.push(`${new Date().toLocaleString()}: Edited ${item} in ${kitchen} from ${oldQty} to ${newQty}`);
-    saveData();
-    renderKitchens();
-  }
-}
-
-function removeItem(kitchen, item) {
-  if (confirm(`Are you sure you want to remove ${item} from ${kitchen}?`)) {
-    delete stock[kitchen][item];
-    auditLog.push(`${new Date().toLocaleString()}: Removed ${item} from ${kitchen}`);
-    saveData();
-    renderKitchens();
-  }
-}
-
-function renderAuditLog() {
-  const container = document.getElementById('auditLog');
-  if (!container) return;
-  container.innerHTML = auditLog.slice().reverse().map(entry => `<div>${entry}</div>`).join('');
-}
-
-// Initialize
-renderKitchens();
 </script>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+        background-color: #f3f4f6;
+    }
+    .page {
+        display: none;
+    }
+    .active-page {
+        display: block;
+    }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
 
+<!-- Navigation Bar -->
+<nav class="bg-white shadow-md p-4 sticky top-0 z-50">
+  <div class="container mx-auto flex flex-col sm:flex-row justify-between items-center">
+    <h1 class="text-2xl font-bold text-gray-800 mb-2 sm:mb-0">Kitchen Stock Manager</h1>
+    <div class="flex flex-wrap justify-center gap-2 sm:gap-4 text-sm font-medium">
+      <a href="#" onclick="showPage('home')" class="text-gray-600 hover:text-blue-600 transition duration-300">Home</a>
+      <a href="#" onclick="showPage('yummyCo')" class="text-gray-600 hover:text-blue-600 transition duration-300">Yummy Co Recipes</a>
+      <a href="#" onclick="showPage('keFi')" class="text-gray-600 hover:text-blue-600 transition duration-300">Ke-fi Recipes</a>
+      <a href="#" onclick="showPage('yummyFrail')" class="text-gray-600 hover:text-blue-600 transition duration-300">Yummy Frail Recipes</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Main Container -->
+<main class="container mx-auto p-4 flex-grow">
+
+    <!-- Custom Message Modal -->
+    <div id="messageModal" class="fixed inset-0 z-[100] bg-gray-600 bg-opacity-75 hidden flex items-center justify-center">
+      <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm">
+        <div id="modalContent" class="text-center font-medium"></div>
+        <div class="flex justify-center mt-4">
+          <button onclick="hideMessage()" class="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition duration-300">OK</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Page 1: Home/Dashboard -->
+    <div id="home" class="page active-page">
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6">
+            <h2 class="text-2xl font-semibold text-center text-gray-700 mb-4">Stock Overview</h2>
+            <div class="flex flex-wrap justify-center gap-6 mt-6" id="kitchens"></div>
+        </div>
+
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Transfer Stock</h3>
+            <div class="flex flex-wrap justify-center items-center gap-4">
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">Item</label>
+                    <select id="item" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200"></select>
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">From</label>
+                    <select id="from" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        <option value="yummyCo">Yummy Co</option>
+                        <option value="keFi">Ke-fi</option>
+                        <option value="yummyFrail">Yummy Frail</option>
+                    </select>
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">To</label>
+                    <select id="to" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        <option value="yummyCo">Yummy Co</option>
+                        <option value="keFi">Ke-fi</option>
+                        <option value="yummyFrail">Yummy Frail</option>
+                    </select>
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">Qty</label>
+                    <input type="number" id="quantity" value="1" min="1" class="p-2 border rounded-md w-20 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <button onclick="transferStock()" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 mt-4 sm:mt-0 shadow-lg">Transfer</button>
+            </div>
+        </div>
+
+        <div id="adminPanel" class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto hidden">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Admin Panel</h3>
+            <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-4">
+                <div class="flex flex-col">
+                    <label class="text-gray-600 font-medium">Item Name</label>
+                    <input type="text" id="newItemName" placeholder="e.g., Tomatoes" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-gray-600 font-medium">Quantity</label>
+                    <input type="number" id="newItemQty" value="1" min="1" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                <div class="flex flex-col">
+                    <label class="text-gray-600 font-medium">Kitchen</label>
+                    <select id="newItemKitchen" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                        <option value="yummyCo">Yummy Co</option>
+                        <option value="keFi">Ke-fi</option>
+                        <option value="yummyFrail">Yummy Frail</option>
+                    </select>
+                </div>
+                <button onclick="addItem()" class="bg-green-600 text-white font-medium px-6 py-2 rounded-md hover:bg-green-700 transition duration-300 mt-4 sm:mt-0 shadow-lg">Add Item</button>
+            </div>
+            <div class="flex justify-center items-center gap-4 mt-4">
+                <button onclick="resetStock()" class="bg-red-600 text-white font-medium px-6 py-2 rounded-md hover:bg-red-700 transition duration-300 shadow-lg">Reset Stock</button>
+            </div>
+            <div class="mt-6">
+                <h4 class="text-lg font-medium text-gray-700 mb-2">Audit Log</h4>
+                <div class="audit-log bg-gray-50 max-h-40 overflow-y-auto border border-gray-300 rounded-md p-2" id="auditLog"></div>
+            </div>
+        </div>
+        <div class="flex justify-center mt-6">
+            <button onclick="loginAdmin()" class="bg-gray-600 text-white font-medium px-6 py-2 rounded-md hover:bg-gray-700 transition duration-300 shadow-lg">Admin Login</button>
+        </div>
+    </div>
+
+    <!-- Page 2: Yummy Co Recipes -->
+    <div id="yummyCo" class="page">
+        <h2 class="text-2xl font-semibold text-center text-gray-700 mb-4 mt-6">Yummy Co Recipes</h2>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-4 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Add New Recipe</h3>
+            <div class="flex flex-col gap-4">
+                <input type="text" id="yummyCoRecipeName" placeholder="Recipe Name" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                <textarea id="yummyCoRecipeIngredients" rows="3" placeholder="Ingredients (e.g., Apples:2, Bananas:1)" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200"></textarea>
+                <button onclick="addRecipe('yummyCo')" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Add Recipe</button>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Available Recipes</h3>
+            <div id="yummyCoRecipes" class="flex flex-col gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Page 3: Ke-fi Recipes -->
+    <div id="keFi" class="page">
+        <h2 class="text-2xl font-semibold text-center text-gray-700 mb-4 mt-6">Ke-fi Recipes</h2>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-4 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Add New Recipe</h3>
+            <div class="flex flex-col gap-4">
+                <input type="text" id="keFiRecipeName" placeholder="Recipe Name" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                <textarea id="keFiRecipeIngredients" rows="3" placeholder="Ingredients (e.g., Apples:2, Bananas:1)" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200"></textarea>
+                <button onclick="addRecipe('keFi')" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Add Recipe</button>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Available Recipes</h3>
+            <div id="keFiRecipes" class="flex flex-col gap-4"></div>
+        </div>
+    </div>
+
+    <!-- Page 4: Yummy Frail Recipes -->
+    <div id="yummyFrail" class="page">
+        <h2 class="text-2xl font-semibold text-center text-gray-700 mb-4 mt-6">Yummy Frail Recipes</h2>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-4 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Add New Recipe</h3>
+            <div class="flex flex-col gap-4">
+                <input type="text" id="yummyFrailRecipeName" placeholder="Recipe Name" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                <textarea id="yummyFrailRecipeIngredients" rows="3" placeholder="Ingredients (e.g., Apples:2, Bananas:1)" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200"></textarea>
+                <button onclick="addRecipe('yummyFrail')" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Add Recipe</button>
+            </div>
+        </div>
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Available Recipes</h3>
+            <div id="yummyFrailRecipes" class="flex flex-col gap-4"></div>
+        </div>
+    </div>
+</main>
+
+<script>
+    // Custom message modal functions
+    function showMessage(message) {
+        document.getElementById('modalContent').innerText = message;
+        document.getElementById('messageModal').classList.remove('hidden');
+    }
+
+    function hideMessage() {
+        document.getElementById('messageModal').classList.add('hidden');
+    }
+
+    const ADMIN_PASSWORD = "1234";
+
+    const initialStock = {
+        yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
+        keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
+        yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 }
+    };
+
+    const initialRecipes = {
+        yummyCo: [],
+        keFi: [],
+        yummyFrail: []
+    };
+
+    // Load state from localStorage
+    const stock = JSON.parse(localStorage.getItem('stock')) || JSON.parse(JSON.stringify(initialStock));
+    const auditLog = JSON.parse(localStorage.getItem('auditLog')) || [];
+    const recipes = JSON.parse(localStorage.getItem('recipes')) || JSON.parse(JSON.stringify(initialRecipes));
+
+    function saveData() {
+        localStorage.setItem('stock', JSON.stringify(stock));
+        localStorage.setItem('auditLog', JSON.stringify(auditLog));
+        localStorage.setItem('recipes', JSON.stringify(recipes));
+    }
+
+    function showPage(pageId) {
+        document.querySelectorAll('.page').forEach(page => {
+            page.classList.remove('active-page');
+        });
+        document.getElementById(pageId).classList.add('active-page');
+        // Rerender recipes for the new page
+        if (pageId !== 'home') {
+            renderRecipes(pageId);
+        }
+        renderKitchens();
+    }
+
+    function renderKitchens() {
+        const container = document.getElementById('kitchens');
+        container.innerHTML = '';
+        const transferSelect = document.getElementById('item');
+        transferSelect.innerHTML = '';
+        const allItems = new Set();
+
+        for (const [key, items] of Object.entries(stock)) {
+            const kitchenDiv = document.createElement('div');
+            kitchenDiv.className = 'kitchen bg-gray-50 rounded-xl p-4 shadow-md w-full sm:w-64';
+            let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
+            let table = `<h3 class="text-center font-bold text-lg mb-2 text-gray-700">${title}</h3><table class="w-full text-sm">`;
+            table += `<thead class="bg-gray-200"><tr><th class="p-2 border rounded-tl-md">Item</th><th class="p-2">Stock</th>`;
+            table += document.getElementById('adminPanel').classList.contains('active-page') ? '<th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>' : '</tr></thead>';
+            table += '<tbody>';
+
+            for (const [item, qty] of Object.entries(items)) {
+                table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td>`;
+                if (document.getElementById('adminPanel').classList.contains('active-page')) {
+                    table += `<td class="p-2 border"><button onclick="editItem('${key}','${item}')" class="bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600 transition">Edit</button></td>`;
+                    table += `<td class="p-2 border"><button onclick="removeItem('${key}','${item}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded hover:bg-red-600 transition">Remove</button></td>`;
+                }
+                table += '</tr>';
+                allItems.add(item);
+            }
+            table += `</tbody></table>`;
+            kitchenDiv.innerHTML = table;
+            container.appendChild(kitchenDiv);
+        }
+
+        // Populate the transfer dropdown with all unique items
+        transferSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
+
+        renderAuditLog();
+    }
+
+    function transferStock() {
+        const item = document.getElementById('item').value;
+        const from = document.getElementById('from').value;
+        const to = document.getElementById('to').value;
+        const qty = parseInt(document.getElementById('quantity').value);
+
+        if (from === to) { showMessage('Choose different kitchens.'); return; }
+        if (!stock[from][item]) { showMessage(`${item} does not exist in ${from}.`); return; }
+        if (stock[from][item] < qty) { showMessage('Not enough stock.'); return; }
+
+        stock[from][item] -= qty;
+        stock[to][item] = (stock[to][item] || 0) + qty;
+
+        auditLog.push(`${new Date().toLocaleString()}: Transferred ${qty} ${item} from ${from} to ${to}`);
+        saveData();
+        renderKitchens();
+        showMessage('Stock transferred successfully!');
+    }
+
+    function addItem() {
+        const itemName = document.getElementById('newItemName').value.trim();
+        const qty = parseInt(document.getElementById('newItemQty').value);
+        const kitchen = document.getElementById('newItemKitchen').value;
+
+        if (!itemName || qty < 1) { showMessage('Enter valid name and quantity.'); return; }
+
+        stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
+        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen}`);
+        saveData();
+        renderKitchens();
+        document.getElementById('newItemName').value = '';
+        document.getElementById('newItemQty').value = 1;
+        showMessage('Item added successfully!');
+    }
+
+    function resetStock() {
+        const isConfirmed = prompt("Type 'RESET' to confirm resetting all stock to initial values:");
+        if (isConfirmed === 'RESET') {
+            for (const key in stock) {
+                stock[key] = { ...initialStock[key] };
+            }
+            auditLog.push(`${new Date().toLocaleString()}: Stock reset by admin`);
+            saveData();
+            renderKitchens();
+            showMessage("Stock has been reset!");
+        } else {
+            showMessage("Reset cancelled.");
+        }
+    }
+
+    function loginAdmin() {
+        const password = prompt("Enter admin password:");
+        if (password === ADMIN_PASSWORD) {
+            document.getElementById('adminPanel').classList.add('active-page');
+            document.getElementById('adminPanel').classList.remove('hidden');
+            renderKitchens();
+            showMessage("Admin mode enabled!");
+        } else {
+            showMessage("Incorrect password!");
+        }
+    }
+
+    function editItem(kitchen, item) {
+        const newQty = parseInt(prompt(`Enter new quantity for ${item} in ${kitchen}:`, stock[kitchen][item]));
+        if (!isNaN(newQty) && newQty >= 0) {
+            const oldQty = stock[kitchen][item];
+            stock[kitchen][item] = newQty;
+            auditLog.push(`${new Date().toLocaleString()}: Edited ${item} in ${kitchen} from ${oldQty} to ${newQty}`);
+            saveData();
+            renderKitchens();
+        } else {
+            showMessage("Invalid quantity. Edit cancelled.");
+        }
+    }
+
+    function removeItem(kitchen, item) {
+        const isConfirmed = prompt(`Are you sure you want to remove ${item} from ${kitchen}? Type 'REMOVE' to confirm.`);
+        if (isConfirmed === 'REMOVE') {
+            delete stock[kitchen][item];
+            auditLog.push(`${new Date().toLocaleString()}: Removed ${item} from ${kitchen}`);
+            saveData();
+            renderKitchens();
+            showMessage(`${item} removed successfully.`);
+        } else {
+            showMessage('Removal cancelled.');
+        }
+    }
+
+    function renderAuditLog() {
+        const container = document.getElementById('auditLog');
+        if (!container) return;
+        container.innerHTML = auditLog.slice().reverse().map(entry => `<div class="p-1 border-b last:border-b-0 border-gray-200">${entry}</div>`).join('');
+    }
+
+    function addRecipe(kitchenId) {
+        const recipeName = document.getElementById(`${kitchenId}RecipeName`).value.trim();
+        const ingredientsText = document.getElementById(`${kitchenId}RecipeIngredients`).value.trim();
+        
+        if (!recipeName || !ingredientsText) {
+            showMessage('Please enter both a recipe name and ingredients.');
+            return;
+        }
+
+        const ingredients = {};
+        const ingredientLines = ingredientsText.split(',').map(s => s.trim()).filter(s => s);
+        let isValid = true;
+        
+        for (const line of ingredientLines) {
+            const parts = line.split(':');
+            if (parts.length === 2) {
+                const item = parts[0].trim();
+                const qty = parseInt(parts[1].trim());
+                if (!isNaN(qty) && qty > 0) {
+                    ingredients[item] = qty;
+                } else {
+                    isValid = false;
+                    break;
+                }
+            } else {
+                isValid = false;
+                break;
+            }
+        }
+
+        if (!isValid) {
+            showMessage('Invalid ingredients format. Please use "Item:Quantity, Item2:Quantity2".');
+            return;
+        }
+
+        recipes[kitchenId].push({ name: recipeName, ingredients });
+        saveData();
+        renderRecipes(kitchenId);
+        document.getElementById(`${kitchenId}RecipeName`).value = '';
+        document.getElementById(`${kitchenId}RecipeIngredients`).value = '';
+        showMessage(`Recipe "${recipeName}" added to ${kitchenId}.`);
+    }
+
+    function renderRecipes(kitchenId) {
+        const container = document.getElementById(`${kitchenId}Recipes`);
+        container.innerHTML = '';
+
+        if (recipes[kitchenId].length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-500 italic">No recipes added yet.</p>`;
+            return;
+        }
+
+        recipes[kitchenId].forEach((recipe, index) => {
+            const recipeDiv = document.createElement('div');
+            recipeDiv.className = 'bg-gray-50 p-4 rounded-lg shadow-md';
+            
+            const ingredientsList = Object.entries(recipe.ingredients).map(([item, qty]) => {
+                const stockQty = stock[kitchenId][item] || 0;
+                const isAvailable = stockQty >= qty;
+                const color = isAvailable ? 'text-green-600' : 'text-red-600';
+                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty})</span></li>`;
+            }).join('');
+
+            recipeDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-2">
+                    <h4 class="text-lg font-semibold text-gray-700">${recipe.name}</h4>
+                    <button onclick="checkStock('${kitchenId}', ${index})" class="bg-purple-600 text-white px-3 py-1 rounded-md text-sm hover:bg-purple-700 transition duration-300">Check Stock</button>
+                </div>
+                <ul class="list-disc list-inside space-y-1">
+                    ${ingredientsList}
+                </ul>
+            `;
+            container.appendChild(recipeDiv);
+        });
+    }
+
+    function checkStock(kitchenId, recipeIndex) {
+        const recipe = recipes[kitchenId][recipeIndex];
+        let canMake = true;
+        let missingItems = [];
+
+        for (const [item, requiredQty] of Object.entries(recipe.ingredients)) {
+            const availableQty = stock[kitchenId][item] || 0;
+            if (availableQty < requiredQty) {
+                canMake = false;
+                missingItems.push(`${item} (need ${requiredQty - availableQty} more)`);
+            }
+        }
+
+        if (canMake) {
+            showMessage(`You have enough stock to make "${recipe.name}"!`);
+        } else {
+            const message = `You do not have enough stock to make "${recipe.name}". Missing: <br>${missingItems.join('<br>')}`;
+            showMessage(message);
+        }
+    }
+
+    // Initial render
+    window.onload = function() {
+        renderKitchens();
+        showPage('home'); // Ensure home page is shown on load
+    }
+</script>
 </body>
 </html>
