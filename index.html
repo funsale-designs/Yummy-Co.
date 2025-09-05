@@ -27,6 +27,9 @@
     .active-page {
         display: block;
     }
+    .audit-log {
+        max-height: 200px; /* Increased height for better visibility */
+    }
 </style>
 </head>
 <body class="bg-gray-100 min-h-screen flex flex-col">
@@ -94,7 +97,47 @@
                 <button onclick="transferStock()" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 mt-4 sm:mt-0 shadow-lg">Transfer</button>
             </div>
         </div>
+        
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Issue Stock</h3>
+            <div class="flex flex-wrap justify-center items-center gap-4">
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">Item</label>
+                    <select id="issueItem" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200"></select>
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">From Kitchen</label>
+                    <select id="issueFrom" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200">
+                        <option value="yummyCo">Yummy Co</option>
+                        <option value="keFi">Ke-fi</option>
+                        <option value="yummyFrail">Yummy Frail</option>
+                    </select>
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">Qty</label>
+                    <input type="number" id="issueQuantity" value="1" min="1" class="p-2 border rounded-md w-20 text-center focus:ring-2 focus:ring-red-500 transition duration-200">
+                </div>
+                <div class="flex flex-col items-center">
+                    <label class="text-gray-600 font-medium">Invoice No. (Optional)</label>
+                    <input type="text" id="issueInvoice" placeholder="INV-001" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200">
+                </div>
+                <button onclick="issueStock()" class="bg-red-600 text-white font-medium px-6 py-2 rounded-md hover:bg-red-700 transition duration-300 mt-4 sm:mt-0 shadow-lg">Issue</button>
+            </div>
+        </div>
 
+        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Stock Issued Reports</h3>
+            <div class="flex justify-center items-center gap-4 mb-4">
+                <select id="reportPeriod" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                </select>
+                <button onclick="generateIssuedReport()" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Generate Report</button>
+            </div>
+            <div id="issuedReport" class="bg-gray-50 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-2 hidden"></div>
+        </div>
+        
         <div id="adminPanel" class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto hidden">
             <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Admin Panel</h3>
             <div class="flex flex-col sm:flex-row justify-center items-center gap-4 mb-4">
@@ -109,6 +152,10 @@
                 <div class="flex flex-col">
                     <label class="text-gray-600 font-medium">Quantity</label>
                     <input type="number" id="newItemQty" value="1" min="1" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
+                </div>
+                 <div class="flex flex-col">
+                    <label class="text-gray-600 font-medium">Invoice No. (Optional)</label>
+                    <input type="text" id="newItemInvoice" placeholder="INV-001" class="p-2 border rounded-md w-24 text-center focus:ring-2 focus:ring-blue-500 transition duration-200">
                 </div>
                 <div class="flex flex-col">
                     <label class="text-gray-600 font-medium">Kitchen</label>
@@ -216,10 +263,13 @@
         keFi: [],
         yummyFrail: []
     };
+    
+    // Audit log will now be an array of objects for better data handling
+    const initialAuditLog = [];
 
     // Load state from localStorage
     const stock = JSON.parse(localStorage.getItem('stock')) || JSON.parse(JSON.stringify(initialStock));
-    const auditLog = JSON.parse(localStorage.getItem('auditLog')) || [];
+    const auditLog = JSON.parse(localStorage.getItem('auditLog')) || initialAuditLog;
     const recipes = JSON.parse(localStorage.getItem('recipes')) || JSON.parse(JSON.stringify(initialRecipes));
     const prices = JSON.parse(localStorage.getItem('prices')) || JSON.parse(JSON.stringify(initialPrices));
 
@@ -246,8 +296,11 @@
     function renderKitchens() {
         const container = document.getElementById('kitchens');
         container.innerHTML = '';
+        
         const transferSelect = document.getElementById('item');
+        const issueSelect = document.getElementById('issueItem');
         transferSelect.innerHTML = '';
+        issueSelect.innerHTML = '';
         const allItems = new Set();
 
         for (const [key, items] of Object.entries(stock)) {
@@ -256,16 +309,18 @@
             kitchenDiv.className = 'kitchen bg-gray-50 rounded-xl p-4 shadow-md w-full sm:w-64';
             let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
             let table = `<h3 class="text-center font-bold text-lg mb-2 text-gray-700">${title}</h3><table class="w-full text-sm">`;
-            table += `<thead class="bg-gray-200"><tr><th class="p-2 border rounded-tl-md">Item</th><th class="p-2">Stock</th>`;
-            table += document.getElementById('adminPanel').classList.contains('active-page') ? '<th class="p-2">Price</th><th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>' : '</tr></thead>';
+            table += `<thead class="bg-gray-200"><tr><th class="p-2 border rounded-tl-md">Item</th><th class="p-2">Stock</th><th class="p-2 rounded-tr-md">Price</th>`;
+            if (document.getElementById('adminPanel').classList.contains('active-page')) {
+                table += `<th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>`;
+            }
+            table += '</tr></thead>';
             table += '<tbody>';
 
             for (const [item, qty] of Object.entries(items)) {
                 const itemPrice = prices[item] || 0;
                 totalValue += qty * itemPrice;
-                table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td>`;
+                table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td><td class="p-2 border">R${itemPrice.toFixed(2)}</td>`;
                 if (document.getElementById('adminPanel').classList.contains('active-page')) {
-                    table += `<td class="p-2 border">R${itemPrice.toFixed(2)}</td>`;
                     table += `<td class="p-2 border"><button onclick="editItem('${key}','${item}')" class="bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600 transition">Edit</button></td>`;
                     table += `<td class="p-2 border"><button onclick="removeItem('${key}','${item}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded hover:bg-red-600 transition">Remove</button></td>`;
                 }
@@ -278,9 +333,10 @@
             container.appendChild(kitchenDiv);
         }
 
-        // Populate the transfer dropdown with all unique items
+        // Populate the transfer and issue dropdowns with all unique items
         transferSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
-
+        issueSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
+        
         renderAuditLog();
     }
 
@@ -291,38 +347,79 @@
         const qty = parseInt(document.getElementById('quantity').value);
 
         if (from === to) { showMessage('Choose different kitchens.'); return; }
-        if (!stock[from][item]) { showMessage(`${item} does not exist in ${from}.`); return; }
+        if (!stock[from] || !stock[from][item]) { showMessage(`${item} does not exist in ${from}.`); return; }
         if (stock[from][item] < qty) { showMessage('Not enough stock.'); return; }
 
         stock[from][item] -= qty;
         stock[to][item] = (stock[to][item] || 0) + qty;
 
-        auditLog.push(`${new Date().toLocaleString()}: Transferred ${qty} ${item} from ${from} to ${to}`);
+        auditLog.push({
+            timestamp: new Date().toISOString(),
+            type: 'transfer',
+            item,
+            quantity: qty,
+            from,
+            to,
+        });
         saveData();
         renderKitchens();
         showMessage('Stock transferred successfully!');
+    }
+    
+    function issueStock() {
+        const item = document.getElementById('issueItem').value;
+        const kitchen = document.getElementById('issueFrom').value;
+        const qty = parseInt(document.getElementById('issueQuantity').value);
+        const invoice = document.getElementById('issueInvoice').value.trim() || null;
+
+        if (!stock[kitchen] || !stock[kitchen][item]) { showMessage(`${item} does not exist in ${kitchen}.`); return; }
+        if (stock[kitchen][item] < qty) { showMessage('Not enough stock.'); return; }
+
+        stock[kitchen][item] -= qty;
+        
+        auditLog.push({
+            timestamp: new Date().toISOString(),
+            type: 'issue',
+            item,
+            quantity: qty,
+            kitchen,
+            invoiceNumber: invoice,
+        });
+        saveData();
+        renderKitchens();
+        showMessage('Stock issued successfully!');
     }
 
     function addItem() {
         const itemName = document.getElementById('newItemName').value.trim();
         const itemPrice = parseFloat(document.getElementById('newItemPrice').value);
         const qty = parseInt(document.getElementById('newItemQty').value);
+        const invoice = document.getElementById('newItemInvoice').value.trim() || null;
         const kitchen = document.getElementById('newItemKitchen').value;
 
         if (!itemName || isNaN(itemPrice) || itemPrice < 0 || isNaN(qty) || qty < 1) { 
             showMessage('Please enter a valid item name, price, and quantity.'); 
             return; 
         }
-
-        stock[kitchen][itemName] = (stock[kitchen][itemName] || 0) + qty;
+        
+        const oldQty = stock[kitchen][itemName] || 0;
+        stock[kitchen][itemName] = oldQty + qty;
         prices[itemName] = itemPrice;
 
-        auditLog.push(`${new Date().toLocaleString()}: Added ${qty} ${itemName} to ${kitchen} at a price of R${itemPrice.toFixed(2)}`);
+        auditLog.push({
+            timestamp: new Date().toISOString(),
+            type: 'add',
+            item: itemName,
+            quantity: qty,
+            kitchen,
+            invoiceNumber: invoice,
+        });
         saveData();
         renderKitchens();
         document.getElementById('newItemName').value = '';
         document.getElementById('newItemPrice').value = '1.00';
         document.getElementById('newItemQty').value = 1;
+        document.getElementById('newItemInvoice').value = '';
         showMessage('Item added successfully!');
     }
 
@@ -335,7 +432,11 @@
             for (const item in initialPrices) {
                 prices[item] = initialPrices[item];
             }
-            auditLog.push(`${new Date().toLocaleString()}: Stock reset by admin`);
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'reset',
+                message: 'Stock reset by admin'
+            });
             saveData();
             renderKitchens();
             showMessage("Stock has been reset!");
@@ -358,23 +459,46 @@
 
     function editItem(kitchen, item) {
         const newQty = parseInt(prompt(`Enter new quantity for ${item} in ${kitchen}:`, stock[kitchen][item]));
-        if (!isNaN(newQty) && newQty >= 0) {
+        const newPrice = parseFloat(prompt(`Enter new price for ${item}:`, prices[item]));
+
+        if (!isNaN(newQty) && newQty >= 0 && !isNaN(newPrice) && newPrice >= 0) {
             const oldQty = stock[kitchen][item];
+            const oldPrice = prices[item];
             stock[kitchen][item] = newQty;
-            auditLog.push(`${new Date().toLocaleString()}: Edited ${item} in ${kitchen} from ${oldQty} to ${newQty}`);
+            prices[item] = newPrice;
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'edit',
+                item,
+                kitchen,
+                oldQuantity: oldQty,
+                newQuantity: newQty,
+                oldPrice: oldPrice,
+                newPrice: newPrice,
+            });
             saveData();
             renderKitchens();
+            showMessage("Item updated successfully!");
         } else {
-            showMessage("Invalid quantity. Edit cancelled.");
+            showMessage("Invalid quantity or price. Edit cancelled.");
         }
     }
 
     function removeItem(kitchen, item) {
         const isConfirmed = prompt(`Are you sure you want to remove ${item} from ${kitchen}? Type 'REMOVE' to confirm.`);
         if (isConfirmed === 'REMOVE') {
+            const oldQty = stock[kitchen][item];
+            const oldPrice = prices[item];
             delete stock[kitchen][item];
             delete prices[item];
-            auditLog.push(`${new Date().toLocaleString()}: Removed ${item} from ${kitchen}`);
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'remove',
+                item,
+                kitchen,
+                quantity: oldQty,
+                price: oldPrice,
+            });
             saveData();
             renderKitchens();
             showMessage(`${item} removed successfully.`);
@@ -386,7 +510,33 @@
     function renderAuditLog() {
         const container = document.getElementById('auditLog');
         if (!container) return;
-        container.innerHTML = auditLog.slice().reverse().map(entry => `<div class="p-1 border-b last:border-b-0 border-gray-200">${entry}</div>`).join('');
+        container.innerHTML = auditLog.slice().reverse().map(entry => {
+            const date = new Date(entry.timestamp).toLocaleString();
+            let logMessage = `${date}: `;
+            switch(entry.type) {
+                case 'add':
+                    logMessage += `Added ${entry.quantity} ${entry.item} to ${entry.kitchen} at R${entry.price.toFixed(2)}. Invoice: ${entry.invoiceNumber || 'N/A'}.`;
+                    break;
+                case 'transfer':
+                    logMessage += `Transferred ${entry.quantity} ${entry.item} from ${entry.from} to ${entry.to}.`;
+                    break;
+                case 'issue':
+                    logMessage += `Issued ${entry.quantity} ${entry.item} from ${entry.kitchen}. Invoice: ${entry.invoiceNumber || 'N/A'}.`;
+                    break;
+                case 'edit':
+                    logMessage += `Edited ${entry.item} in ${entry.kitchen}. Qty: ${entry.oldQuantity} -> ${entry.newQuantity}. Price: R${entry.oldPrice.toFixed(2)} -> R${entry.newPrice.toFixed(2)}.`;
+                    break;
+                case 'remove':
+                    logMessage += `Removed ${entry.item} from ${entry.kitchen}. Old Qty: ${entry.quantity}. Old Price: R${entry.price.toFixed(2)}.`;
+                    break;
+                case 'reset':
+                    logMessage += 'Stock reset by admin.';
+                    break;
+                default:
+                    logMessage += 'Unknown action.';
+            }
+            return `<div class="p-1 text-sm border-b last:border-b-0 border-gray-200">${logMessage}</div>`;
+        }).join('');
     }
 
     function addRecipe(kitchenId) {
@@ -410,7 +560,6 @@
                 const qty = parseInt(parts[1].trim());
                 if (!isNaN(qty) && qty > 0) {
                     ingredients[item] = qty;
-                    // Add to recipe cost if item has a price
                     const itemPrice = prices[item] || 0;
                     recipeCost += itemPrice * qty;
                 } else {
@@ -484,17 +633,56 @@
         });
     }
 
-    function checkStock(kitchenId, recipeIndex) {
-        // This function is now redundant as availability is calculated and displayed directly
-        // on the recipe card.
-    }
-
     function deleteRecipe(kitchenId, recipeIndex) {
         const recipeName = recipes[kitchenId][recipeIndex].name;
         recipes[kitchenId].splice(recipeIndex, 1);
         saveData();
         renderRecipes(kitchenId);
         showMessage(`Recipe "${recipeName}" deleted.`);
+    }
+
+    function generateIssuedReport() {
+        const period = document.getElementById('reportPeriod').value;
+        const reportContainer = document.getElementById('issuedReport');
+        reportContainer.innerHTML = '';
+
+        let startDate = new Date();
+        const now = new Date();
+        
+        switch(period) {
+            case 'daily':
+                startDate.setDate(now.getDate() - 1); // Last 24 hours
+                break;
+            case 'weekly':
+                startDate.setDate(now.getDate() - 7); // Last 7 days
+                break;
+            case 'monthly':
+                startDate.setMonth(now.getMonth() - 1); // Last 30 days
+                break;
+        }
+
+        const issuedItems = {};
+
+        auditLog.forEach(entry => {
+            if (entry.type === 'issue' && new Date(entry.timestamp) >= startDate) {
+                const item = entry.item;
+                issuedItems[item] = (issuedItems[item] || 0) + entry.quantity;
+            }
+        });
+        
+        if (Object.keys(issuedItems).length === 0) {
+            reportContainer.innerHTML = `<p class="text-center text-gray-500 italic">No stock was issued in the selected period.</p>`;
+        } else {
+            let reportHtml = `<p class="text-center font-bold mb-2">Total Stock Issued (${period}):</p>`;
+            reportHtml += `<ul class="list-disc list-inside space-y-1">`;
+            for (const item in issuedItems) {
+                reportHtml += `<li class="font-medium">${item}: <span class="text-gray-600">${issuedItems[item]}</span></li>`;
+            }
+            reportHtml += `</ul>`;
+            reportContainer.innerHTML = reportHtml;
+        }
+
+        reportContainer.classList.remove('hidden');
     }
 
     // Initial render
