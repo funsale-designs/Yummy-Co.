@@ -1,122 +1,91 @@
-import React, { useState } from "react";
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Kitchen Stock</title>
+<style>
+  body { font-family: Arial; padding: 20px; background: #f5f5f5; }
+  .kitchen { display: inline-block; vertical-align: top; margin: 10px; padding: 10px; background: #fff; border-radius: 8px; box-shadow: 0 0 5px #ccc; }
+  table { border-collapse: collapse; width: 150px; }
+  th, td { border: 1px solid #ccc; padding: 5px; text-align: center; }
+  .transfer { margin-top: 20px; }
+</style>
+</head>
+<body>
 
-export default function KitchenStockApp() {
-  const initialStock = {
-    yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
-    keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
-    yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 },
-  };
+<h1>Kitchen Stock Management</h1>
 
-  const [stock, setStock] = useState(initialStock);
-  const [transfer, setTransfer] = useState({
-    item: "Apples",
-    from: "yummyCo",
-    to: "keFi",
-    quantity: 1,
-  });
+<div id="kitchens"></div>
 
-  const handleTransfer = () => {
-    const { item, from, to, quantity } = transfer;
-    if (from === to) return alert("Choose different kitchens!");
-    if (stock[from][item] < quantity) return alert("Not enough stock!");
+<div class="transfer">
+  <h3>Transfer Stock</h3>
+  <label>Item:
+    <select id="item">
+      <option>Apples</option>
+      <option>Bananas</option>
+      <option>Oranges</option>
+    </select>
+  </label>
+  <label>From:
+    <select id="from">
+      <option value="yummyCo">Yummy Co</option>
+      <option value="keFi">Ke-fi</option>
+      <option value="yummyFrail">Yummy Frail</option>
+    </select>
+  </label>
+  <label>To:
+    <select id="to">
+      <option value="yummyCo">Yummy Co</option>
+      <option value="keFi">Ke-fi</option>
+      <option value="yummyFrail">Yummy Frail</option>
+    </select>
+  </label>
+  <label>Qty: <input type="number" id="quantity" value="1" min="1"></label>
+  <button onclick="transferStock()">Transfer</button>
+</div>
 
-    setStock((prev) => ({
-      ...prev,
-      [from]: { ...prev[from], [item]: prev[from][item] - quantity },
-      [to]: { ...prev[to], [item]: prev[to][item] + quantity },
-    }));
-  };
+<script>
+const stock = {
+  yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
+  keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
+  yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 }
+};
 
-  return (
-    <div className="p-6 bg-gray-100 min-h-screen">
-      <h1 className="text-3xl font-bold text-center mb-6">
-        Kitchen Stock Management
-      </h1>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {Object.entries(stock).map(([kitchen, items]) => (
-          <div
-            key={kitchen}
-            className="bg-white rounded-2xl shadow-lg p-4 border"
-          >
-            <h2 className="text-xl font-bold mb-4 text-center">
-              {kitchen === "yummyCo"
-                ? "Yummy Co"
-                : kitchen === "keFi"
-                ? "Ke-fi"
-                : "Yummy Frail"}
-            </h2>
-            <table className="w-full border-collapse">
-              <thead>
-                <tr>
-                  <th className="border px-2 py-1">Item</th>
-                  <th className="border px-2 py-1">Stock</th>
-                </tr>
-              </thead>
-              <tbody>
-                {Object.entries(items).map(([item, qty]) => (
-                  <tr key={item}>
-                    <td className="border px-2 py-1">{item}</td>
-                    <td className="border px-2 py-1">{qty}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        ))}
-      </div>
-
-      {/* Transfer Form */}
-      <div className="bg-white rounded-2xl shadow-lg p-4 border mt-6">
-        <h2 className="text-xl font-bold mb-4 text-center">Transfer Stock</h2>
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <select
-            value={transfer.item}
-            onChange={(e) =>
-              setTransfer({ ...transfer, item: e.target.value })
-            }
-            className="border rounded-lg p-2"
-          >
-            <option>Apples</option>
-            <option>Bananas</option>
-            <option>Oranges</option>
-          </select>
-          <select
-            value={transfer.from}
-            onChange={(e) =>
-              setTransfer({ ...transfer, from: e.target.value })
-            }
-            className="border rounded-lg p-2"
-          >
-            <option value="yummyCo">Yummy Co</option>
-            <option value="keFi">Ke-fi</option>
-            <option value="yummyFrail">Yummy Frail</option>
-          </select>
-          <select
-            value={transfer.to}
-            onChange={(e) => setTransfer({ ...transfer, to: e.target.value })}
-            className="border rounded-lg p-2"
-          >
-            <option value="yummyCo">Yummy Co</option>
-            <option value="keFi">Ke-fi</option>
-            <option value="yummyFrail">Yummy Frail</option>
-          </select>
-          <input
-            type="number"
-            min="1"
-            value={transfer.quantity}
-            onChange={(e) =>
-              setTransfer({ ...transfer, quantity: Number(e.target.value) })
-            }
-            className="border rounded-lg p-2"
-          />
-        </div>
-        <button
-          onClick={handleTransfer}
-          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 block mx-auto"
-        >
-          Transfer
-        </button>
-      </div>
-    </div>
-  );
+function renderKitchens() {
+  const container = document.getElementById('kitchens');
+  container.innerHTML = '';
+  for (const [key, items] of Object.entries(stock)) {
+    const kitchenDiv = document.createElement('div');
+    kitchenDiv.className = 'kitchen';
+    let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
+    kitchenDiv.innerHTML = `<h3>${title}</h3>`;
+    let table = '<table><tr><th>Item</th><th>Stock</th></tr>';
+    for (const [item, qty] of Object.entries(items)) {
+      table += `<tr><td>${item}</td><td>${qty}</td></tr>`;
+    }
+    table += '</table>';
+    kitchenDiv.innerHTML += table;
+    container.appendChild(kitchenDiv);
+  }
 }
+
+function transferStock() {
+  const item = document.getElementById('item').value;
+  const from = document.getElementById('from').value;
+  const to = document.getElementById('to').value;
+  const qty = parseInt(document.getElementById('quantity').value);
+
+  if (from === to) { alert('Choose different kitchens'); return; }
+  if (stock[from][item] < qty) { alert('Not enough stock'); return; }
+
+  stock[from][item] -= qty;
+  stock[to][item] += qty;
+  renderKitchens();
+}
+
+renderKitchens();
+</script>
+
+</body>
+</html>
