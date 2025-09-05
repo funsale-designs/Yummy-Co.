@@ -1,0 +1,122 @@
+import React, { useState } from "react";
+
+export default function KitchenStockApp() {
+  const initialStock = {
+    yummyCo: { Apples: 50, Bananas: 30, Oranges: 40 },
+    keFi: { Apples: 20, Bananas: 40, Oranges: 25 },
+    yummyFrail: { Apples: 15, Bananas: 10, Oranges: 20 },
+  };
+
+  const [stock, setStock] = useState(initialStock);
+  const [transfer, setTransfer] = useState({
+    item: "Apples",
+    from: "yummyCo",
+    to: "keFi",
+    quantity: 1,
+  });
+
+  const handleTransfer = () => {
+    const { item, from, to, quantity } = transfer;
+    if (from === to) return alert("Choose different kitchens!");
+    if (stock[from][item] < quantity) return alert("Not enough stock!");
+
+    setStock((prev) => ({
+      ...prev,
+      [from]: { ...prev[from], [item]: prev[from][item] - quantity },
+      [to]: { ...prev[to], [item]: prev[to][item] + quantity },
+    }));
+  };
+
+  return (
+    <div className="p-6 bg-gray-100 min-h-screen">
+      <h1 className="text-3xl font-bold text-center mb-6">
+        Kitchen Stock Management
+      </h1>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        {Object.entries(stock).map(([kitchen, items]) => (
+          <div
+            key={kitchen}
+            className="bg-white rounded-2xl shadow-lg p-4 border"
+          >
+            <h2 className="text-xl font-bold mb-4 text-center">
+              {kitchen === "yummyCo"
+                ? "Yummy Co"
+                : kitchen === "keFi"
+                ? "Ke-fi"
+                : "Yummy Frail"}
+            </h2>
+            <table className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th className="border px-2 py-1">Item</th>
+                  <th className="border px-2 py-1">Stock</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(items).map(([item, qty]) => (
+                  <tr key={item}>
+                    <td className="border px-2 py-1">{item}</td>
+                    <td className="border px-2 py-1">{qty}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+      </div>
+
+      {/* Transfer Form */}
+      <div className="bg-white rounded-2xl shadow-lg p-4 border mt-6">
+        <h2 className="text-xl font-bold mb-4 text-center">Transfer Stock</h2>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <select
+            value={transfer.item}
+            onChange={(e) =>
+              setTransfer({ ...transfer, item: e.target.value })
+            }
+            className="border rounded-lg p-2"
+          >
+            <option>Apples</option>
+            <option>Bananas</option>
+            <option>Oranges</option>
+          </select>
+          <select
+            value={transfer.from}
+            onChange={(e) =>
+              setTransfer({ ...transfer, from: e.target.value })
+            }
+            className="border rounded-lg p-2"
+          >
+            <option value="yummyCo">Yummy Co</option>
+            <option value="keFi">Ke-fi</option>
+            <option value="yummyFrail">Yummy Frail</option>
+          </select>
+          <select
+            value={transfer.to}
+            onChange={(e) => setTransfer({ ...transfer, to: e.target.value })}
+            className="border rounded-lg p-2"
+          >
+            <option value="yummyCo">Yummy Co</option>
+            <option value="keFi">Ke-fi</option>
+            <option value="yummyFrail">Yummy Frail</option>
+          </select>
+          <input
+            type="number"
+            min="1"
+            value={transfer.quantity}
+            onChange={(e) =>
+              setTransfer({ ...transfer, quantity: Number(e.target.value) })
+            }
+            className="border rounded-lg p-2"
+          />
+        </div>
+        <button
+          onClick={handleTransfer}
+          className="mt-4 bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 block mx-auto"
+        >
+          Transfer
+        </button>
+      </div>
+    </div>
+  );
+}
