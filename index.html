@@ -28,7 +28,7 @@
         display: block;
     }
     .audit-log {
-        max-height: 200px; /* Increased height for better visibility */
+        max-height: 200px;
     }
 </style>
 </head>
@@ -99,43 +99,16 @@
         </div>
         
         <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
-            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Issue Stock</h3>
-            <div class="flex flex-wrap justify-center items-center gap-4">
-                <div class="flex flex-col items-center">
-                    <label class="text-gray-600 font-medium">Item</label>
-                    <select id="issueItem" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200"></select>
-                </div>
-                <div class="flex flex-col items-center">
-                    <label class="text-gray-600 font-medium">From Kitchen</label>
-                    <select id="issueFrom" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200">
-                        <option value="yummyCo">Yummy Co</option>
-                        <option value="keFi">Ke-fi</option>
-                        <option value="yummyFrail">Yummy Frail</option>
-                    </select>
-                </div>
-                <div class="flex flex-col items-center">
-                    <label class="text-gray-600 font-medium">Qty</label>
-                    <input type="number" id="issueQuantity" value="1" min="1" class="p-2 border rounded-md w-20 text-center focus:ring-2 focus:ring-red-500 transition duration-200">
-                </div>
-                <div class="flex flex-col items-center">
-                    <label class="text-gray-600 font-medium">Invoice No. (Optional)</label>
-                    <input type="text" id="issueInvoice" placeholder="INV-001" class="p-2 border rounded-md focus:ring-2 focus:ring-red-500 transition duration-200">
-                </div>
-                <button onclick="issueStock()" class="bg-red-600 text-white font-medium px-6 py-2 rounded-md hover:bg-red-700 transition duration-300 mt-4 sm:mt-0 shadow-lg">Issue</button>
-            </div>
-        </div>
-
-        <div class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto">
-            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Stock Issued Reports</h3>
+            <h3 class="text-xl font-semibold text-gray-700 mb-4 text-center">Stock Activity Reports</h3>
             <div class="flex justify-center items-center gap-4 mb-4">
                 <select id="reportPeriod" class="p-2 border rounded-md focus:ring-2 focus:ring-blue-500 transition duration-200">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
                 </select>
-                <button onclick="generateIssuedReport()" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Generate Report</button>
+                <button onclick="generateActivityReport()" class="bg-blue-600 text-white font-medium px-6 py-2 rounded-md hover:bg-blue-700 transition duration-300 shadow-lg">Generate Report</button>
             </div>
-            <div id="issuedReport" class="bg-gray-50 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-2 hidden"></div>
+            <div id="activityReport" class="bg-gray-50 max-h-60 overflow-y-auto border border-gray-300 rounded-md p-2 hidden"></div>
         </div>
         
         <div id="adminPanel" class="bg-white p-6 rounded-xl shadow-lg mt-6 max-w-2xl mx-auto hidden">
@@ -298,9 +271,7 @@
         container.innerHTML = '';
         
         const transferSelect = document.getElementById('item');
-        const issueSelect = document.getElementById('issueItem');
         transferSelect.innerHTML = '';
-        issueSelect.innerHTML = '';
         const allItems = new Set();
 
         for (const [key, items] of Object.entries(stock)) {
@@ -333,9 +304,8 @@
             container.appendChild(kitchenDiv);
         }
 
-        // Populate the transfer and issue dropdowns with all unique items
+        // Populate the transfer dropdown with all unique items
         transferSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
-        issueSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
         
         renderAuditLog();
     }
@@ -364,30 +334,6 @@
         saveData();
         renderKitchens();
         showMessage('Stock transferred successfully!');
-    }
-    
-    function issueStock() {
-        const item = document.getElementById('issueItem').value;
-        const kitchen = document.getElementById('issueFrom').value;
-        const qty = parseInt(document.getElementById('issueQuantity').value);
-        const invoice = document.getElementById('issueInvoice').value.trim() || null;
-
-        if (!stock[kitchen] || !stock[kitchen][item]) { showMessage(`${item} does not exist in ${kitchen}.`); return; }
-        if (stock[kitchen][item] < qty) { showMessage('Not enough stock.'); return; }
-
-        stock[kitchen][item] -= qty;
-        
-        auditLog.push({
-            timestamp: new Date().toISOString(),
-            type: 'issue',
-            item,
-            quantity: qty,
-            kitchen,
-            invoiceNumber: invoice,
-        });
-        saveData();
-        renderKitchens();
-        showMessage('Stock issued successfully!');
     }
 
     function addItem() {
@@ -520,9 +466,6 @@
                 case 'transfer':
                     logMessage += `Transferred ${entry.quantity} ${entry.item} from ${entry.from} to ${entry.to}.`;
                     break;
-                case 'issue':
-                    logMessage += `Issued ${entry.quantity} ${entry.item} from ${entry.kitchen}. Invoice: ${entry.invoiceNumber || 'N/A'}.`;
-                    break;
                 case 'edit':
                     logMessage += `Edited ${entry.item} in ${entry.kitchen}. Qty: ${entry.oldQuantity} -> ${entry.newQuantity}. Price: R${entry.oldPrice.toFixed(2)} -> R${entry.newPrice.toFixed(2)}.`;
                     break;
@@ -641,9 +584,9 @@
         showMessage(`Recipe "${recipeName}" deleted.`);
     }
 
-    function generateIssuedReport() {
+    function generateActivityReport() {
         const period = document.getElementById('reportPeriod').value;
-        const reportContainer = document.getElementById('issuedReport');
+        const reportContainer = document.getElementById('activityReport');
         reportContainer.innerHTML = '';
 
         let startDate = new Date();
@@ -651,34 +594,42 @@
         
         switch(period) {
             case 'daily':
-                startDate.setDate(now.getDate() - 1); // Last 24 hours
+                startDate.setDate(now.getDate() - 1);
                 break;
             case 'weekly':
-                startDate.setDate(now.getDate() - 7); // Last 7 days
+                startDate.setDate(now.getDate() - 7);
                 break;
             case 'monthly':
-                startDate.setMonth(now.getMonth() - 1); // Last 30 days
+                startDate.setMonth(now.getMonth() - 1);
                 break;
         }
 
-        const issuedItems = {};
+        const issuedAndTransferredItems = {};
 
         auditLog.forEach(entry => {
-            if (entry.type === 'issue' && new Date(entry.timestamp) >= startDate) {
+            if ((entry.type === 'issue' || entry.type === 'transfer') && new Date(entry.timestamp) >= startDate) {
                 const item = entry.item;
-                issuedItems[item] = (issuedItems[item] || 0) + entry.quantity;
+                const kitchen = entry.from || entry.kitchen;
+                
+                if (!issuedAndTransferredItems[kitchen]) {
+                    issuedAndTransferredItems[kitchen] = {};
+                }
+                issuedAndTransferredItems[kitchen][item] = (issuedAndTransferredItems[kitchen][item] || 0) + entry.quantity;
             }
         });
         
-        if (Object.keys(issuedItems).length === 0) {
-            reportContainer.innerHTML = `<p class="text-center text-gray-500 italic">No stock was issued in the selected period.</p>`;
+        if (Object.keys(issuedAndTransferredItems).length === 0) {
+            reportContainer.innerHTML = `<p class="text-center text-gray-500 italic">No stock activity in the selected period.</p>`;
         } else {
-            let reportHtml = `<p class="text-center font-bold mb-2">Total Stock Issued (${period}):</p>`;
-            reportHtml += `<ul class="list-disc list-inside space-y-1">`;
-            for (const item in issuedItems) {
-                reportHtml += `<li class="font-medium">${item}: <span class="text-gray-600">${issuedItems[item]}</span></li>`;
+            let reportHtml = `<p class="text-center font-bold mb-2">Total Stock Activity (${period}):</p>`;
+            for (const kitchen in issuedAndTransferredItems) {
+                reportHtml += `<h4 class="font-bold mt-4">${kitchen.charAt(0).toUpperCase() + kitchen.slice(1)}:</h4>`;
+                reportHtml += `<ul class="list-disc list-inside space-y-1 ml-4">`;
+                for (const item in issuedAndTransferredItems[kitchen]) {
+                    reportHtml += `<li class="font-medium">${item}: <span class="text-gray-600">${issuedAndTransferredItems[kitchen][item]}</span> issued/transferred</li>`;
+                }
+                reportHtml += `</ul>`;
             }
-            reportHtml += `</ul>`;
             reportContainer.innerHTML = reportHtml;
         }
 
