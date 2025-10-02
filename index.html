@@ -301,7 +301,7 @@
         localStorage.setItem('auditLog', JSON.stringify(auditLog));
         localStorage.setItem('recipes', JSON.stringify(recipes));
         localStorage.setItem('prices', JSON.stringify(prices));
-        localStorage.setItem('dailyMenu', JSON.stringify(dailyMenu)); // NEW
+        localStorage.setItem('dailyMenu', JSON.stringify(dailyMenu)); 
     }
 
     function showPage(pageId) {
@@ -312,7 +312,7 @@
         
         if (pageId.includes('yummy') || pageId.includes('keFi')) {
             renderRecipes(pageId);
-        } else if (pageId === 'menuPrep') { // NEW
+        } else if (pageId === 'menuPrep') { 
             renderMenuRecipes();
             renderCurrentMenu();
             // Hide the prep list when navigating back to this page
@@ -322,7 +322,392 @@
         }
     }
 
-    // Existing functions (renderKitchens, transferStock, addItem, resetStock, loginAdmin, editItem, removeItem, renderAuditLog, addRecipe, renderRecipes, deleteRecipe, generateActivityReport) remain the same.
+    function renderKitchens() {
+        const container = document.getElementById('kitchens');
+        container.innerHTML = '';
+        
+        const transferSelect = document.getElementById('item');
+        transferSelect.innerHTML = '';
+        const allItems = new Set();
+        
+        // Check if admin panel is visible to determine if edit/remove buttons should be rendered
+        const isAdminMode = !document.getElementById('adminPanel').classList.contains('hidden');
+
+        for (const [key, items] of Object.entries(stock)) {
+            let totalValue = 0;
+            const kitchenDiv = document.createElement('div');
+            kitchenDiv.className = 'kitchen bg-gray-50 rounded-xl p-4 shadow-md w-full sm:w-64';
+            let title = key === 'yummyCo' ? 'Yummy Co' : key === 'keFi' ? 'Ke-fi' : 'Yummy Frail';
+            let table = `<h3 class="text-center font-bold text-lg mb-2 text-gray-700">${title}</h3><table class="w-full text-sm">`;
+            table += `<thead class="bg-gray-200"><tr><th class="p-2 border rounded-tl-md">Item</th><th class="p-2">Stock</th><th class="p-2 rounded-tr-md">Price</th>`;
+            if (isAdminMode) {
+                table += `<th class="p-2">Edit</th><th class="p-2 rounded-tr-md">Remove</th>`;
+            }
+            table += '</tr></thead>';
+            table += '<tbody>';
+
+            for (const [item, qty] of Object.entries(items)) {
+                const itemPrice = prices[item] || 0;
+                totalValue += qty * itemPrice;
+                table += `<tr><td class="p-2 border">${item}</td><td class="p-2 border">${qty}</td><td class="p-2 border">R${itemPrice.toFixed(2)}</td>`;
+                if (isAdminMode) {
+                    table += `<td class="p-2 border"><button onclick="editItem('${key}','${item}')" class="bg-blue-500 text-white px-3 py-1 text-xs rounded hover:bg-blue-600 transition">Edit</button></td>`;
+                    table += `<td class="p-2 border"><button onclick="removeItem('${key}','${item}')" class="bg-red-500 text-white px-3 py-1 text-xs rounded hover:bg-red-600 transition">Remove</button></td>`;
+                }
+                table += '</tr>';
+                allItems.add(item);
+            }
+            table += `</tbody></table>`;
+            table += `<div class="mt-2 text-center text-gray-700 font-bold">Total Value: R${totalValue.toFixed(2)}</div>`;
+            kitchenDiv.innerHTML = table;
+            container.appendChild(kitchenDiv);
+        }
+
+        // Populate the transfer dropdown with all unique items
+        transferSelect.innerHTML = [...allItems].map(item => `<option value="${item}">${item}</option>`).join('');
+        
+        renderAuditLog();
+    }
+
+    function transferStock() {
+        const item = document.getElementById('item').value;
+        const from = document.getElementById('from').value;
+        const to = document.getElementById('to').value;
+        const qty = parseInt(document.getElementById('quantity').value);
+
+        if (from === to) { showMessage('Choose different kitchens.'); return; }
+        if (!stock[from] || !stock[from][item]) { showMessage(`${item} does not exist in ${from}.`); return; }
+        if (stock[from][item] < qty) { showMessage('Not enough stock.'); return; }
+
+        stock[from][item] -= qty;
+        stock[to][item] = (stock[to][item] || 0) + qty;
+
+        auditLog.push({
+            timestamp: new Date().toISOString(),
+            type: 'transfer',
+            item,
+            quantity: qty,
+            from,
+            to,
+        });
+        saveData();
+        renderKitchens();
+        showMessage('Stock transferred successfully!');
+    }
+
+    function addItem() {
+        const itemName = document.getElementById('newItemName').value.trim();
+        const itemPrice = parseFloat(document.getElementById('newItemPrice').value);
+        const qty = parseInt(document.getElementById('newItemQty').value);
+        const invoice = document.getElementById('newItemInvoice').value.trim() || null;
+        const kitchen = document.getElementById('newItemKitchen').value;
+
+        if (!itemName || isNaN(itemPrice) || itemPrice < 0 || isNaN(qty) || qty < 1) { 
+            showMessage('Please enter a valid item name, price, and quantity.'); 
+            return; 
+        }
+        
+        const oldQty = stock[kitchen][itemName] || 0;
+        stock[kitchen][itemName] = oldQty + qty;
+        prices[itemName] = itemPrice;
+
+        auditLog.push({
+            timestamp: new Date().toISOString(),
+            type: 'add',
+            item: itemName,
+            quantity: qty,
+            kitchen,
+            price: itemPrice, // Store price in log for completeness
+            invoiceNumber: invoice,
+        });
+        saveData();
+        renderKitchens();
+        document.getElementById('newItemName').value = '';
+        document.getElementById('newItemPrice').value = '1.00';
+        document.getElementById('newItemQty').value = 1;
+        document.getElementById('newItemInvoice').value = '';
+        showMessage('Item added successfully!');
+    }
+
+    function resetStock() {
+        const isConfirmed = prompt("Type 'RESET' to confirm resetting all stock to initial values:");
+        if (isConfirmed === 'RESET') {
+            for (const key in stock) {
+                stock[key] = { ...initialStock[key] };
+            }
+            // Reset prices too
+            for (const item in initialPrices) {
+                prices[item] = initialPrices[item];
+            }
+            // Reset recipes and daily menu
+            for (const key in recipes) {
+                recipes[key] = initialRecipes[key];
+            }
+            dailyMenu.yummyCo = [];
+            dailyMenu.keFi = [];
+            dailyMenu.yummyFrail = [];
+
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'reset',
+                message: 'Stock and Recipes reset by admin'
+            });
+            saveData();
+            renderKitchens();
+            showMessage("Stock, Prices, and Recipes have been reset!");
+        } else {
+            showMessage("Reset cancelled.");
+        }
+    }
+
+    // --- CORRECTED ADMIN LOGIN FUNCTION ---
+    function loginAdmin() {
+        const password = prompt("Enter admin password:");
+        if (password === ADMIN_PASSWORD) {
+            document.getElementById('adminPanel').classList.remove('hidden');
+            renderKitchens(); // Re-render to show Edit/Remove buttons
+            showMessage("Admin mode enabled! You can now edit stock and prices.");
+        } else {
+            showMessage("Incorrect password!");
+        }
+    }
+    // -------------------------------------
+
+    function editItem(kitchen, item) {
+        const newQty = parseInt(prompt(`Enter new quantity for ${item} in ${kitchen}:`, stock[kitchen][item]));
+        const newPrice = parseFloat(prompt(`Enter new price (R) for ${item}:`, prices[item].toFixed(2)));
+
+        if (!isNaN(newQty) && newQty >= 0 && !isNaN(newPrice) && newPrice >= 0) {
+            const oldQty = stock[kitchen][item];
+            const oldPrice = prices[item];
+            stock[kitchen][item] = newQty;
+            prices[item] = newPrice;
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'edit',
+                item,
+                kitchen,
+                oldQuantity: oldQty,
+                newQuantity: newQty,
+                oldPrice: oldPrice,
+                newPrice: newPrice,
+            });
+            saveData();
+            renderKitchens();
+            showMessage("Item updated successfully!");
+        } else {
+            showMessage("Invalid quantity or price. Edit cancelled.");
+        }
+    }
+
+    function removeItem(kitchen, item) {
+        const isConfirmed = prompt(`Are you sure you want to remove ${item} from ${kitchen}? Type 'REMOVE' to confirm.`);
+        if (isConfirmed === 'REMOVE') {
+            const oldQty = stock[kitchen][item];
+            const oldPrice = prices[item];
+            delete stock[kitchen][item];
+            delete prices[item];
+            auditLog.push({
+                timestamp: new Date().toISOString(),
+                type: 'remove',
+                item,
+                kitchen,
+                quantity: oldQty,
+                price: oldPrice,
+            });
+            saveData();
+            renderKitchens();
+            showMessage(`${item} removed successfully.`);
+        } else {
+            showMessage('Removal cancelled.');
+        }
+    }
+
+    function renderAuditLog() {
+        const container = document.getElementById('auditLog');
+        if (!container) return;
+        container.innerHTML = auditLog.slice().reverse().map(entry => {
+            const date = new Date(entry.timestamp).toLocaleString();
+            let logMessage = `${date}: `;
+            switch(entry.type) {
+                case 'add':
+                    logMessage += `Added ${entry.quantity} ${entry.item} to ${entry.kitchen} at R${entry.price ? entry.price.toFixed(2) : 'N/A'}. Invoice: ${entry.invoiceNumber || 'N/A'}.`;
+                    break;
+                case 'issue':
+                    logMessage += `Consumed ${entry.quantity} ${entry.item} from ${entry.kitchen} (${entry.reason || 'N/A'}).`;
+                    break;
+                case 'transfer':
+                    logMessage += `Transferred ${entry.quantity} ${entry.item} from ${entry.from} to ${entry.to}.`;
+                    break;
+                case 'edit':
+                    logMessage += `Edited ${entry.item} in ${entry.kitchen}. Qty: ${entry.oldQuantity} -> ${entry.newQuantity}. Price: R${entry.oldPrice.toFixed(2)} -> R${entry.newPrice.toFixed(2)}.`;
+                    break;
+                case 'remove':
+                    logMessage += `Removed ${entry.item} from ${entry.kitchen}. Old Qty: ${entry.quantity}. Old Price: R${entry.price.toFixed(2)}.`;
+                    break;
+                case 'reset':
+                    logMessage += 'Stock and Recipes reset by admin.';
+                    break;
+                default:
+                    logMessage += 'Unknown action.';
+            }
+            return `<div class="p-1 text-sm border-b last:border-b-0 border-gray-200">${logMessage}</div>`;
+        }).join('');
+    }
+
+    function addRecipe(kitchenId) {
+        const recipeName = document.getElementById(`${kitchenId}RecipeName`).value.trim();
+        const ingredientsText = document.getElementById(`${kitchenId}RecipeIngredients`).value.trim();
+        
+        if (!recipeName || !ingredientsText) {
+            showMessage('Please enter both a recipe name and ingredients.');
+            return;
+        }
+
+        const ingredients = {};
+        let recipeCost = 0;
+        const ingredientLines = ingredientsText.split(',').map(s => s.trim()).filter(s => s);
+        let isValid = true;
+        
+        for (const line of ingredientLines) {
+            const parts = line.split(':');
+            if (parts.length === 2) {
+                const item = parts[0].trim();
+                const qty = parseInt(parts[1].trim());
+                if (!isNaN(qty) && qty > 0) {
+                    ingredients[item] = qty;
+                    const itemPrice = prices[item] || 0;
+                    recipeCost += itemPrice * qty;
+                } else {
+                    isValid = false;
+                    break;
+                }
+            } else {
+                isValid = false;
+                break;
+            }
+        }
+
+        if (!isValid) {
+            showMessage('Invalid ingredients format. Please use "Item:Quantity, Item2:Quantity2".');
+            return;
+        }
+
+        recipes[kitchenId].push({ name: recipeName, ingredients, cost: recipeCost.toFixed(2) });
+        saveData();
+        renderRecipes(kitchenId);
+        document.getElementById(`${kitchenId}RecipeName`).value = '';
+        document.getElementById(`${kitchenId}RecipeIngredients`).value = '';
+        showMessage(`Recipe "${recipeName}" added to ${kitchenId}.`);
+    }
+
+    function renderRecipes(kitchenId) {
+        const container = document.getElementById(`${kitchenId}Recipes`);
+        container.innerHTML = '';
+
+        if (recipes[kitchenId].length === 0) {
+            container.innerHTML = `<p class="text-center text-gray-500 italic">No recipes added yet.</p>`;
+            return;
+        }
+
+        recipes[kitchenId].forEach((recipe, index) => {
+            const recipeDiv = document.createElement('div');
+            recipeDiv.className = 'bg-gray-50 p-4 rounded-lg shadow-md';
+            
+            const ingredientsList = Object.entries(recipe.ingredients).map(([item, qty]) => {
+                const stockQty = stock[kitchenId][item] || 0;
+                const isAvailable = stockQty >= qty;
+                const color = isAvailable ? 'text-green-600' : 'text-red-600';
+                const itemPrice = prices[item] || 0;
+                const itemCost = (itemPrice * qty).toFixed(2);
+                return `<li class="${color} flex justify-between items-center"><span class="font-medium">${item}:</span> <span>${qty} (Stock: ${stockQty}) - R${itemCost}</span></li>`;
+            }).join('');
+            
+            let canMakeRecipe = true;
+            for(const [item, requiredQty] of Object.entries(recipe.ingredients)) {
+                if((stock[kitchenId][item] || 0) < requiredQty) {
+                    canMakeRecipe = false;
+                    break;
+                }
+            }
+            const availabilityMessage = canMakeRecipe ? '✅ You can make this!' : '❌ Not enough stock!';
+
+            recipeDiv.innerHTML = `
+                <div class="flex flex-col sm:flex-row justify-between items-center mb-2">
+                    <h4 class="text-lg font-semibold text-gray-700">${recipe.name}</h4>
+                    <span class="text-gray-600 font-medium">Cost: R${recipe.cost}</span>
+                </div>
+                <ul class="list-disc list-inside space-y-1">
+                    ${ingredientsList}
+                </ul>
+                <div class="mt-4 font-bold text-center">${availabilityMessage}</div>
+                <div class="flex justify-end mt-4">
+                    <button onclick="deleteRecipe('${kitchenId}', ${index})" class="bg-red-500 text-white px-3 py-1 rounded-md text-sm hover:bg-red-600 transition duration-300">Delete</button>
+                </div>
+            `;
+            container.appendChild(recipeDiv);
+        });
+    }
+
+    function deleteRecipe(kitchenId, recipeIndex) {
+        const recipeName = recipes[kitchenId][recipeIndex].name;
+        recipes[kitchenId].splice(recipeIndex, 1);
+        saveData();
+        renderRecipes(kitchenId);
+        showMessage(`Recipe "${recipeName}" deleted.`);
+    }
+
+    function generateActivityReport() {
+        const period = document.getElementById('reportPeriod').value;
+        const reportContainer = document.getElementById('activityReport');
+        reportContainer.innerHTML = '';
+
+        let startDate = new Date();
+        const now = new Date();
+        
+        switch(period) {
+            case 'daily':
+                startDate.setDate(now.getDate() - 1);
+                break;
+            case 'weekly':
+                startDate.setDate(now.getDate() - 7);
+                break;
+            case 'monthly':
+                startDate.setMonth(now.getMonth() - 1);
+                break;
+        }
+
+        const issuedAndTransferredItems = {};
+
+        auditLog.forEach(entry => {
+            if ((entry.type === 'issue' || entry.type === 'transfer') && new Date(entry.timestamp) >= startDate) {
+                const item = entry.item;
+                const kitchen = entry.from || entry.kitchen;
+                
+                if (!issuedAndTransferredItems[kitchen]) {
+                    issuedAndTransferredItems[kitchen] = {};
+                }
+                issuedAndTransferredItems[kitchen][item] = (issuedAndTransferredItems[kitchen][item] || 0) + entry.quantity;
+            }
+        });
+        
+        if (Object.keys(issuedAndTransferredItems).length === 0) {
+            reportContainer.innerHTML = `<p class="text-center text-gray-500 italic">No stock activity in the selected period.</p>`;
+        } else {
+            let reportHtml = `<p class="text-center font-bold mb-2">Total Stock Activity (${period}):</p>`;
+            for (const kitchen in issuedAndTransferredItems) {
+                reportHtml += `<h4 class="font-bold mt-4">${kitchen.charAt(0).toUpperCase() + kitchen.slice(1)}:</h4>`;
+                reportHtml += `<ul class="list-disc list-inside space-y-1 ml-4">`;
+                for (const item in issuedAndTransferredItems[kitchen]) {
+                    reportHtml += `<li class="font-medium">${item}: <span class="text-gray-600">${issuedAndTransferredItems[kitchen][item]}</span> consumed/transferred</li>`;
+                }
+                reportHtml += `</ul>`;
+            }
+            reportContainer.innerHTML = reportHtml;
+        }
+
+        reportContainer.classList.remove('hidden');
+    }
 
     // ******************************************************
     // NEW MENU & PREP LIST FUNCTIONS
@@ -348,25 +733,27 @@
 
     function addToMenu() {
         const kitchenId = document.getElementById('menuKitchen').value;
-        const recipeIndex = parseInt(document.getElementById('recipeSelect').value);
+        const recipeIndex = document.getElementById('recipeSelect').value;
         const portions = parseInt(document.getElementById('portionsInput').value);
 
-        if (isNaN(recipeIndex) || isNaN(portions) || portions < 1) {
+        if (recipeIndex === "" || isNaN(portions) || portions < 1) {
             showMessage('Please select a recipe and enter a valid number of portions.');
             return;
         }
+        
+        const numericRecipeIndex = parseInt(recipeIndex);
 
-        const existingItem = dailyMenu[kitchenId].find(item => item.recipeIndex === recipeIndex);
+        const existingItem = dailyMenu[kitchenId].find(item => item.recipeIndex === numericRecipeIndex);
 
         if (existingItem) {
             existingItem.portions += portions;
         } else {
-            dailyMenu[kitchenId].push({ recipeIndex, portions });
+            dailyMenu[kitchenId].push({ recipeIndex: numericRecipeIndex, portions });
         }
         
         saveData();
         renderCurrentMenu();
-        showMessage(`${recipes[kitchenId][recipeIndex].name} x ${portions} added to the menu!`);
+        showMessage(`${recipes[kitchenId][numericRecipeIndex].name} x ${portions} added to the menu!`);
         document.getElementById('portionsInput').value = 1; // Reset input
     }
 
@@ -415,7 +802,6 @@
         const prepListItems = document.getElementById('prepListItems');
         prepListItems.innerHTML = '';
         
-        let grandTotalPrep = {};
         let hasMenu = false;
 
         for (const kitchenId in dailyMenu) {
@@ -430,7 +816,6 @@
                         for (const ingredient in recipe.ingredients) {
                             const requiredQty = recipe.ingredients[ingredient] * item.portions;
                             kitchenTotalPrep[ingredient] = (kitchenTotalPrep[ingredient] || 0) + requiredQty;
-                            grandTotalPrep[ingredient] = (grandTotalPrep[ingredient] || 0) + requiredQty;
                         }
                     }
                 });
@@ -442,7 +827,7 @@
                 for (const ingredient in kitchenTotalPrep) {
                     const required = kitchenTotalPrep[ingredient];
                     const available = stock[kitchenId][ingredient] || 0;
-                    const colorClass = available >= required ? 'text-green-600' : 'text-red-600 font-bold';
+                    const colorClass = available >= required ? 'text-green-600" title="Enough Stock"' : 'text-red-600 font-bold" title="STOCK SHORTFALL!"';
                     kitchenHtml += `<li>${ingredient}: ${required} units (Stock: <span class="${colorClass}">${available}</span>)</li>`;
                 }
                 
@@ -458,20 +843,21 @@
         }
         
         prepListContainer.classList.remove('hidden');
-        showMessage("Prep list generated!");
+        showMessage("Prep list generated! Check for stock shortfalls (red text).");
     }
 
     function consumeStockForMenu() {
         const isConfirmed = confirm("This will deduct the required ingredients for the entire menu from stock and clear the menu. Are you sure?");
         if (!isConfirmed) return;
 
-        let totalConsumedItems = {}; // To track all deductions for the audit log
+        let allConsumptionSuccessful = true;
+        let finalShortfallMessage = "";
 
+        // Iterate through kitchens to check stock first
         for (const kitchenId in dailyMenu) {
             if (dailyMenu[kitchenId].length > 0) {
                 let kitchenTotalPrep = {};
                 
-                // 1. Calculate total ingredients needed for the kitchen
                 dailyMenu[kitchenId].forEach(item => {
                     const recipe = recipes[kitchenId][item.recipeIndex];
                     if (recipe) {
@@ -482,40 +868,54 @@
                     }
                 });
                 
-                // 2. Perform stock deduction
-                let canConsume = true;
-                let shortfallMessage = `Cannot consume stock for ${kitchenId}: `;
-                
+                // Check for shortfalls
                 for (const ingredient in kitchenTotalPrep) {
                     const required = kitchenTotalPrep[ingredient];
                     const available = stock[kitchenId][ingredient] || 0;
                     if (available < required) {
-                        canConsume = false;
-                        shortfallMessage += `${ingredient} shortfall of ${required - available}. `;
+                        finalShortfallMessage += `Cannot consume stock for ${kitchenId}: ${ingredient} shortfall of ${required - available}. `;
+                        allConsumptionSuccessful = false;
                     }
                 }
+            }
+        }
 
-                if (canConsume) {
-                    for (const ingredient in kitchenTotalPrep) {
-                        const consumedQty = kitchenTotalPrep[ingredient];
-                        stock[kitchenId][ingredient] -= consumedQty;
-                        totalConsumedItems[ingredient] = (totalConsumedItems[ingredient] || 0) + consumedQty;
-                        
-                        // Add to individual kitchen audit log
-                        auditLog.push({
-                            timestamp: new Date().toISOString(),
-                            type: 'issue',
-                            item: ingredient,
-                            quantity: consumedQty,
-                            kitchen: kitchenId,
-                            reason: 'Menu Prep Consumption'
-                        });
+        if (!allConsumptionSuccessful) {
+            showMessage(finalShortfallMessage);
+            return; 
+        }
+
+        // If all checks pass, proceed with deduction and logging
+        for (const kitchenId in dailyMenu) {
+            if (dailyMenu[kitchenId].length > 0) {
+                let kitchenTotalPrep = {};
+                
+                // Recalculate (safe to do since no other processes have run)
+                dailyMenu[kitchenId].forEach(item => {
+                    const recipe = recipes[kitchenId][item.recipeIndex];
+                    if (recipe) {
+                        for (const ingredient in recipe.ingredients) {
+                            const requiredQty = recipe.ingredients[ingredient] * item.portions;
+                            kitchenTotalPrep[ingredient] = (kitchenTotalPrep[ingredient] || 0) + requiredQty;
+                        }
                     }
-                    dailyMenu[kitchenId] = []; // Clear menu for this kitchen
-                } else {
-                    showMessage(shortfallMessage);
-                    return; // Stop the entire process if one kitchen fails
+                });
+                
+                for (const ingredient in kitchenTotalPrep) {
+                    const consumedQty = kitchenTotalPrep[ingredient];
+                    stock[kitchenId][ingredient] -= consumedQty;
+                    
+                    // Add to audit log
+                    auditLog.push({
+                        timestamp: new Date().toISOString(),
+                        type: 'issue',
+                        item: ingredient,
+                        quantity: consumedQty,
+                        kitchen: kitchenId,
+                        reason: 'Menu Prep Consumption'
+                    });
                 }
+                dailyMenu[kitchenId] = []; // Clear menu for this kitchen
             }
         }
 
@@ -523,12 +923,8 @@
         renderKitchens(); // Update stock view
         renderCurrentMenu(); // Clear menu display
         document.getElementById('prepList').classList.add('hidden'); // Hide prep list
-        showMessage("Stock successfully consumed and menu cleared! Ready for a fresh menu.");
+        showMessage("Stock successfully consumed and menu cleared! Ready for a fresh menu. Stock view updated.");
     }
-
-    // ******************************************************
-    // END NEW FUNCTIONS
-    // ******************************************************
 
     // Initial render
     window.onload = function() {
@@ -537,18 +933,6 @@
         // Pre-populate recipe dropdown on menuPrep page
         renderMenuRecipes();
     }
-    
-    // The rest of your existing functions (renderKitchens, transferStock, addItem, etc.) go here.
-    // For brevity in this response, only the new logic is displayed, but in the actual file, 
-    // all your original functions would be present after this section.
-    
-    // (Note: The existing functions from the original code are necessary for the full application to work. 
-    // They are omitted here to highlight the new additions, but included in the complete code block above.)
-
-    
-    // Your existing functions are too long to include here for just a modification, 
-    // but they must be present in the final, complete code.
-    // I have ensured the complete code block at the top contains all original and new logic.
 </script>
 </body>
-</ht
+</html>
