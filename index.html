@@ -2,165 +2,317 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Kitchen Stock Manager (Firebase Modular)</title>
+  <title>Kitchen Stock Manager</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-<div class="max-w-7xl mx-auto">
+  <div class="max-w-7xl mx-auto">
+    <h1 class="text-3xl font-bold mb-4 text-center">Kitchen Stock Manager</h1>
 
-  <h1 class="text-3xl font-bold mb-4 text-center">Kitchen Stock Manager — Firebase Modular</h1>
+    <!-- Top nav / tabs -->
+    <div class="flex flex-wrap gap-2 justify-center mb-6">
+      <button class="tab-btn px-4 py-2 bg-indigo-600 text-white rounded" data-target="storeRoom">Store Room</button>
+      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frail">Kitchen 1 - Frail</button>
+      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="catering">Kitchen 2 - Catering</button>
+      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="kefi">Kitchen 3 - Kefi</button>
+      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frailFoh">Kitchen 4 - Frail FOH</button>
+    </div>
 
-  <!-- Top nav / tabs -->
-  <div class="flex flex-wrap gap-2 justify-center mb-6">
-    <button class="tab-btn px-4 py-2 bg-indigo-600 text-white rounded" data-target="storeRoom">Store Room</button>
-    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frail">Kitchen 1 - Frail</button>
-    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="catering">Kitchen 2 - Catering</button>
-    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="kefi">Kitchen 3 - Kefi</button>
-    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frailFoh">Kitchen 4 - Frail FOH</button>
+    <div id="content" class="space-y-6">
+      <!-- Store Room -->
+      <div id="storeRoom" class="page bg-white p-4 rounded-lg shadow">
+        <h2 class="font-semibold mb-2">Store Room (Master Stock)</h2>
+        <div class="grid md:grid-cols-2 gap-4">
+          <div>
+            <h3 class="font-medium mb-2">Add / Update Stock</h3>
+            <div class="flex gap-2">
+              <input id="srItem" placeholder="Item" class="flex-1 p-2 border rounded" />
+              <input id="srQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
+              <input id="srPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
+              <button id="srAdd" class="bg-green-600 text-white px-4 rounded">Add</button>
+            </div>
+          </div>
+          <div>
+            <h3 class="font-medium mb-2">Store Room Stock</h3>
+            <ul id="srList" class="list-disc pl-6 space-y-1 max-h-48 overflow-auto"></ul>
+            <h3 class="font-medium mt-4 mb-2">Shopping List (Low Stock &lt;3)</h3>
+            <ul id="shoppingList" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto text-red-600"></ul>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other kitchens placeholders -->
+      <div id="frail" class="page hidden bg-white p-4 rounded-lg shadow"></div>
+      <div id="catering" class="page hidden bg-white p-4 rounded-lg shadow"></div>
+      <div id="kefi" class="page hidden bg-white p-4 rounded-lg shadow"></div>
+      <div id="frailFoh" class="page hidden bg-white p-4 rounded-lg shadow"></div>
+    </div>
   </div>
 
-  <div id="content" class="space-y-6">
-    <!-- Low stock / shopping list -->
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h2 class="font-semibold mb-2">Low Stock & Shopping List</h2>
-      <ul id="lowStockList" class="list-disc pl-6 space-y-1 text-red-600"></ul>
-    </div>
+  <!-- Firebase modular SDK -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-    <!-- TRANSFER PANEL -->
-    <div class="bg-white p-4 rounded-lg shadow">
-      <h2 class="font-semibold mb-2">Transfer Stock</h2>
-      <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-        <div>
-          <label class="text-sm font-medium">From</label>
-          <select id="transferFrom" class="w-full p-2 border rounded"></select>
-        </div>
-        <div>
-          <label class="text-sm font-medium">To</label>
-          <select id="transferTo" class="w-full p-2 border rounded"></select>
-        </div>
-        <div>
-          <label class="text-sm font-medium">Item</label>
-          <input id="transferItem" class="w-full p-2 border rounded" placeholder="Item name" />
-        </div>
-        <div>
-          <label class="text-sm font-medium">Quantity</label>
-          <input id="transferQty" type="number" min="1" value="1" class="w-full p-2 border rounded" />
-        </div>
-        <div>
-          <button id="transferBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded">Transfer</button>
-        </div>
-      </div>
-      <p id="transferMessage" class="text-sm mt-2 text-gray-600"></p>
-    </div>
+    // TODO: Replace with your own Firebase config
+    const firebaseConfig = {
+      apiKey: "AIzaSyDywp4wU8oiDypiQ5OydSfQuyx8xS2BerQ",
+      authDomain: "kitchen-stock-44799.firebaseapp.com",
+      projectId: "kitchen-stock-44799",
+      storageBucket: "kitchen-stock-44799.firebasestorage.app",
+      messagingSenderId: "320520731433",
+      appId: "1:320520731433:web:a69d9bc6fc1cb3959f5538",
+      measurementId: "G-11Q1S857RR"
+    };
 
-    <!-- Store Room -->
-    <div id="storeRoom" class="page bg-white p-4 rounded-lg shadow">
-      <h2 class="font-semibold mb-2">Store Room (Master Stock)</h2>
-      <div class="grid md:grid-cols-2 gap-4">
-        <div>
-          <h3 class="font-medium mb-2">Add / Update Stock</h3>
-          <div class="flex gap-2">
-            <input id="srItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-            <input id="srQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-            <input id="srPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-            <button id="srAdd" class="bg-green-600 text-white px-4 rounded">Add</button>
-          </div>
-        </div>
-        <div>
-          <h3 class="font-medium mb-2">Store Room Stock</h3>
-          <ul id="srList" class="list-disc pl-6 space-y-1 max-h-48 overflow-auto"></ul>
-        </div>
-      </div>
-    </div>
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
 
-    <!-- Kitchens (frail, catering, kefi, frailFoh) -->
-    <!-- We'll only show frail template here; replicate for others if needed -->
-    <div id="frail" class="page hidden bg-white p-4 rounded-lg shadow">
-      <h2 class="font-semibold mb-2">Kitchen 1 — Frail</h2>
-      <div class="grid md:grid-cols-3 gap-4">
-        <!-- Stock -->
-        <div>
-          <h3 class="font-medium mb-2">Stock</h3>
-          <div class="flex gap-2 mb-2">
-            <input id="frailItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-            <input id="frailQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-            <input id="frailPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-            <button data-add="frail" class="bg-green-600 text-white px-3 rounded">Add</button>
-          </div>
-          <ul id="frailStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
-        </div>
-        <!-- Recipes -->
-        <div>
-          <h3 class="font-medium mb-2">Recipes</h3>
-          <input id="frailRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
-          <textarea id="frailRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
-          <div class="flex gap-2 mb-2">
-            <button data-recipe-add="frail" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
-            <input id="frailCsv" type="file" accept=".csv" class="text-sm" />
-            <button data-csv="frail" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
-          </div>
-          <div id="frailRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
-        </div>
-        <!-- Menu & Prep -->
-        <div>
-          <h3 class="font-medium mb-2">Menu & Prep</h3>
-          <div class="flex gap-2 mb-2">
-            <select id="frailRecipeSelect" class="flex-1 p-2 border rounded"></select>
-            <input id="frailPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
-            <button data-addmenu="frail" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
-          </div>
-          <ul id="frailMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
-          <button data-genprep="frail" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
-          <div id="frailPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
-        </div>
-      </div>
-    </div>
+    const LOCATIONS = ['storeRoom','frail','catering','kefi','frailFoh'];
+    let stock = { storeRoom: {}, frail: {}, catering: {}, kefi: {}, frailFoh: {} };
+    let prices = {};
 
-  </div>
-</div>
+    function $(id){return document.getElementById(id);}
+    
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        const target = btn.dataset.target;
+        document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
+        $(target).classList.remove('hidden');
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('bg-indigo-600','text-white'));
+        btn.classList.add('bg-indigo-600','text-white');
+      });
+    });
 
-<!-- Firebase Modular SDK -->
+    // Add Store Room stock
+    $('srAdd').addEventListener('click', async ()=>{
+      const item = $('srItem').value.trim();
+      const qty = parseFloat($('srQty').value);
+      const price = parseFloat($('srPrice').value);
+      if(!item || isNaN(qty) || isNaN(price)) return alert('Enter item, qty, price');
+      stock.storeRoom[item] = (stock.storeRoom[item] || 0) + qty;
+      prices[item] = price;
+      await setDoc(doc(db,'stock','storeRoom'), stock.storeRoom);
+      $('srItem').value=''; $('srQty').value=''; $('srPrice').value='';
+    });
+
+    // Listen to storeRoom stock changes
+    const srRef = doc(db,'stock','storeRoom');
+    onSnapshot(srRef, (docSnap)=>{
+      if(docSnap.exists()){
+        stock.storeRoom = docSnap.data();
+        renderStoreRoom();
+      }
+    });
+
+    function renderStoreRoom(){
+      const container = $('srList');
+      const shopping = $('shoppingList');
+      container.innerHTML = '';
+      shopping.innerHTML = '';
+      for(const [item,qty] of Object.entries(stock.storeRoom)){
+        container.innerHTML += `<li>${item}: ${qty} — R${prices[item] ? prices[item].toFixed(2) : '0.00'}</li>`;
+        if(qty < 3) shopping.innerHTML += `<li>${item}: ${qty}</li>`;
+      }
+    }
+
+    // Show Store Room by default
+    document.querySelectorAll('.tab-btn')[0].click();
+  </script>
+</body>
+</html>
 <script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
-import { getFirestore, doc, collection, setDoc, getDoc, onSnapshot, runTransaction, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+// --- continuing from Part 1 ---
+import { doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
 
-// ----------------- Firebase Config -----------------
-const firebaseConfig = {
-  apiKey: "AIzaSyDywp4wU8oiDypiQ5OydSfQuyx8xS2BerQ",
-  authDomain: "kitchen-stock-44799.firebaseapp.com",
-  projectId: "kitchen-stock-44799",
-  storageBucket: "kitchen-stock-44799.firebasestorage.app",
-  messagingSenderId: "320520731433",
-  appId: "1:320520731433:web:a69d9bc6fc1cb3959f5538",
-  measurementId: "G-11Q1S857RR"
-};
-
-// Initialize Firebase
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// ----------------- Locations -----------------
-const LOCATIONS = ['storeRoom','frail','catering','kefi','frailFoh'];
-let stock = { storeRoom:{}, frail:{}, catering:{}, kefi:{}, frailFoh:{} };
-let prices = {};
-let recipes = { frail:[], catering:[], kefi:[], frailFoh:[] };
-let menu = { frail:[], catering:[], kefi:[], frailFoh:[] };
-const LOW_STOCK_THRESHOLD = 5; // alert if qty < 5
-
-function $(id){ return document.getElementById(id); }
-
-// ----------------- Transfer dropdowns -----------------
-function populateTransferOptions(){
-  const from = $('transferFrom');
-  const to = $('transferTo');
-  from.innerHTML = LOCATIONS.map(l=>`<option value="${l}">${locationLabel(l)}</option>`).join('');
-  to.innerHTML = LOCATIONS.map(l=>`<option value="${l}">${locationLabel(l)}</option>`).join('');
+// Helper to render kitchen stock
+function renderKitchen(kitchen) {
+  const container = $(kitchen + 'List');
+  if (!container) return;
+  container.innerHTML = '';
+  for (const [item, qty] of Object.entries(stock[kitchen])) {
+    container.innerHTML += `<li>${item}: ${qty} — R${prices[item] ? prices[item].toFixed(2) : '0.00'}</li>`;
+  }
 }
-function locationLabel(id){
-  switch(id){
-    case 'storeRoom': return 'Store Room';
-    case 'frail': return 'Kitchen 1 - Frail';
-    case 'catering': return 'Kitchen 2 - Catering';
-    case 'kefi': return 'Kitchen 3 - Kefi';
-    case 'frailFoh': return '
+
+// Initialize kitchens
+['frail','catering','kefi','frailFoh'].forEach(kitchen => {
+  const page = $(kitchen);
+  const listId = kitchen + 'List';
+  page.innerHTML = `
+    <h2 class="font-semibold mb-2">${kitchen.toUpperCase()} Stock</h2>
+    <div class="grid md:grid-cols-2 gap-4">
+      <div>
+        <h3 class="font-medium mb-2">Transfer from Store Room</h3>
+        <div class="flex gap-2">
+          <select id="${kitchen}Item" class="flex-1 p-2 border rounded">
+            <option value="">Select Item</option>
+          </select>
+          <input id="${kitchen}Qty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
+          <button id="${kitchen}Add" class="bg-green-600 text-white px-4 rounded">Add</button>
+        </div>
+      </div>
+      <div>
+        <h3 class="font-medium mb-2">Current Stock</h3>
+        <ul id="${listId}" class="list-disc pl-6 space-y-1 max-h-48 overflow-auto"></ul>
+      </div>
+    </div>
+  `;
+
+  // Update item select options when storeRoom changes
+  onSnapshot(doc(db,'stock','storeRoom'), docSnap => {
+    const select = $(kitchen + 'Item');
+    if (docSnap.exists()) {
+      const srStock = docSnap.data();
+      select.innerHTML = '<option value="">Select Item</option>';
+      for (const item of Object.keys(srStock)) {
+        select.innerHTML += `<option value="${item}">${item} (${srStock[item]})</option>`;
+      }
+    }
+  });
+
+  // Add/transfer stock from Store Room
+  $(kitchen+'Add').addEventListener('click', async ()=>{
+    const item = $(kitchen+'Item').value;
+    const qty = parseFloat($(kitchen+'Qty').value);
+    if (!item || isNaN(qty) || qty <= 0) return alert('Select item and enter qty');
+
+    if ((stock.storeRoom[item] || 0) < qty) return alert('Not enough stock in Store Room');
+
+    // Deduct from Store Room
+    stock.storeRoom[item] -= qty;
+    await setDoc(doc(db,'stock','storeRoom'), stock.storeRoom);
+
+    // Add to kitchen
+    stock[kitchen][item] = (stock[kitchen][item] || 0) + qty;
+    await setDoc(doc(db,'stock',kitchen), stock[kitchen]);
+
+    $(kitchen+'Qty').value = '';
+  });
+
+  // Listen to kitchen stock changes
+  onSnapshot(doc(db,'stock',kitchen), docSnap => {
+    if (docSnap.exists()){
+      stock[kitchen] = docSnap.data();
+      renderKitchen(kitchen);
+    }
+  });
+});
+</script>
+<script type="module">
+// --- Low Stock & Shopping List ---
+
+// Threshold for low stock alert
+const LOW_STOCK_THRESHOLD = 3; // less than 3 items
+
+// Container for shopping list
+const shoppingContainer = document.createElement('div');
+shoppingContainer.className = 'bg-yellow-50 p-4 rounded mb-6';
+shoppingContainer.innerHTML = `<h2 class="font-semibold mb-2">Shopping List (Low Stock)</h2>
+<ul id="shoppingList" class="list-disc pl-6 space-y-1"></ul>`;
+document.body.prepend(shoppingContainer);
+
+// Function to check low stock and build shopping list
+function updateShoppingList() {
+  const allItems = {}; // item: total qty across kitchens
+  const listEl = document.getElementById('shoppingList');
+  listEl.innerHTML = '';
+
+  // Sum all kitchen stocks
+  ['frail','catering','kefi','frailFoh'].forEach(k=>{
+    for (const [item, qty] of Object.entries(stock[k] || {})){
+      allItems[item] = (allItems[item] || 0) + qty;
+    }
+  });
+
+  // Check Store Room items too
+  for (const [item, qty] of Object.entries(stock.storeRoom || {})){
+    allItems[item] = (allItems[item] || 0) + qty;
+  }
+
+  // Filter low stock items
+  const lowStockItems = Object.entries(allItems).filter(([item, qty]) => qty < LOW_STOCK_THRESHOLD);
+
+  if(lowStockItems.length === 0){
+    listEl.innerHTML = '<li>All stocks sufficient</li>';
+    return;
+  }
+
+  // Render low stock items
+  lowStockItems.forEach(([item, qty])=>{
+    const li = document.createElement('li');
+    li.textContent = `${item}: ${qty} in stock — need to order`;
+    li.className = 'text-red-600';
+    listEl.appendChild(li);
+  });
+}
+
+// Run every time stock changes
+['storeRoom','frail','catering','kefi','frailFoh'].forEach(loc=>{
+  onSnapshot(doc(db,'stock',loc), docSnap=>{
+    if(docSnap.exists()) {
+      stock[loc] = docSnap.data();
+      updateShoppingList();
+    }
+  });
+});
+</script>
+<script type="module">
+// --- Part 4: Low Stock Notification & Shopping List Export ---
+
+import { doc, onSnapshot } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+// Container already created in Part 3
+const shoppingExportBtn = document.createElement('button');
+shoppingExportBtn.textContent = 'Export Shopping List CSV';
+shoppingExportBtn.className = 'bg-green-600 text-white px-4 py-2 rounded mt-2';
+shoppingContainer.appendChild(shoppingExportBtn);
+
+shoppingExportBtn.addEventListener('click', () => {
+    const listItems = Array.from(document.querySelectorAll('#shoppingList li'))
+        .filter(li => li.textContent.includes('need to order'))
+        .map(li => li.textContent.replace(' in stock — need to order',''));
+    
+    if(listItems.length === 0){
+        alert('No low-stock items to export.');
+        return;
+    }
+
+    const csvContent = 'Item,Current Qty\n' + listItems.map(item=>{
+        const qty = Object.entries(stock).reduce((sum, [loc, items]) => sum + (items[item] || 0), 0);
+        return `${item},${qty}`;
+    }).join('\n');
+
+    const blob = new Blob([csvContent], {type: 'text/csv'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'shopping_list.csv';
+    a.click();
+    URL.revokeObjectURL(url);
+});
+
+// Optional: show a browser alert when any item drops below threshold
+function checkLowStockNotification() {
+    const lowItems = [];
+    for(const loc of ['storeRoom','frail','catering','kefi','frailFoh']){
+        for(const [item,qty] of Object.entries(stock[loc] || {})){
+            if(qty < LOW_STOCK_THRESHOLD) lowItems.push(`${item} (${qty})`);
+        }
+    }
+    if(lowItems.length) alert('Low Stock Alert:\n' + lowItems.join('\n'));
+}
+
+// Run every time stock changes
+['storeRoom','frail','catering','kefi','frailFoh'].forEach(loc=>{
+    onSnapshot(doc(db,'stock',loc), docSnap=>{
+        if(docSnap.exists()) {
+            stock[loc] = docSnap.data();
+            updateShoppingList();
+            checkLowStockNotification();
+        }
+    });
+});
+</script>
