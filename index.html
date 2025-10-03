@@ -2,286 +2,160 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <title>Kitchen Stock Manager (Firebase)</title>
+  <title>Kitchen Stock Manager (Firebase Modular)</title>
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <script src="https://cdn.tailwindcss.com"></script>
-  <!-- Firebase (compat for easier migration) -->
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen p-6">
-  <div class="max-w-7xl mx-auto">
+<div class="max-w-7xl mx-auto">
 
-    <h1 class="text-3xl font-bold mb-4 text-center">Kitchen Stock Manager — Firebase</h1>
+  <h1 class="text-3xl font-bold mb-4 text-center">Kitchen Stock Manager — Firebase Modular</h1>
 
-    <!-- Top nav / tabs -->
-    <div class="flex flex-wrap gap-2 justify-center mb-6">
-      <button class="tab-btn px-4 py-2 bg-indigo-600 text-white rounded" data-target="storeRoom">Store Room</button>
-      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frail">Kitchen 1 - Frail</button>
-      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="catering">Kitchen 2 - Catering</button>
-      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="kefi">Kitchen 3 - Kefi</button>
-      <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frailFoh">Kitchen 4 - Frail FOH</button>
-    </div>
-
-    <div id="content" class="space-y-6">
-
-      <!-- TRANSFER PANEL (global) -->
-      <div class="bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Transfer Stock (bi-directional)</h2>
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
-          <div>
-            <label class="text-sm font-medium">From</label>
-            <select id="transferFrom" class="w-full p-2 border rounded">
-              <!-- options populated by JS -->
-            </select>
-          </div>
-          <div>
-            <label class="text-sm font-medium">To</label>
-            <select id="transferTo" class="w-full p-2 border rounded">
-              <!-- options populated by JS -->
-            </select>
-          </div>
-          <div>
-            <label class="text-sm font-medium">Item</label>
-            <input id="transferItem" class="w-full p-2 border rounded" placeholder="Item name (case sensitive)" />
-          </div>
-          <div>
-            <label class="text-sm font-medium">Quantity</label>
-            <input id="transferQty" type="number" min="1" value="1" class="w-full p-2 border rounded" />
-          </div>
-          <div>
-            <button id="transferBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded">Transfer</button>
-          </div>
-        </div>
-        <p id="transferMessage" class="text-sm mt-2 text-gray-600"></p>
-      </div>
-
-      <!-- Pages: storeRoom + 4 kitchens -->
-      <div id="storeRoom" class="page bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Store Room (Master Stock)</h2>
-        <div class="grid md:grid-cols-2 gap-4">
-          <div>
-            <h3 class="font-medium mb-2">Add / Update Stock</h3>
-            <div class="flex gap-2">
-              <input id="srItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-              <input id="srQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-              <input id="srPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-              <button id="srAdd" class="bg-green-600 text-white px-4 rounded">Add</button>
-            </div>
-          </div>
-          <div>
-            <h3 class="font-medium mb-2">Store Room Stock</h3>
-            <ul id="srList" class="list-disc pl-6 space-y-1 max-h-48 overflow-auto"></ul>
-          </div>
-        </div>
-      </div>
-
-      <!-- Kitchen template: each kitchen has stock, recipes, menu, prep history -->
-      <div id="frail" class="page hidden bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Kitchen 1 — Frail</h2>
-        <div class="grid md:grid-cols-3 gap-4">
-          <!-- Stock -->
-          <div>
-            <h3 class="font-medium mb-2">Stock</h3>
-            <div class="flex gap-2 mb-2">
-              <input id="frailItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-              <input id="frailQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-              <input id="frailPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-              <button data-add="frail" class="bg-green-600 text-white px-3 rounded">Add</button>
-            </div>
-            <ul id="frailStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
-          </div>
-
-          <!-- Recipes -->
-          <div>
-            <h3 class="font-medium mb-2">Recipes</h3>
-            <input id="frailRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
-            <textarea id="frailRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
-            <div class="flex gap-2 mb-2">
-              <button data-recipe-add="frail" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
-              <input id="frailCsv" type="file" accept=".csv" class="text-sm" />
-              <button data-csv="frail" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
-            </div>
-            <div id="frailRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
-          </div>
-
-          <!-- Menu & Prep -->
-          <div>
-            <h3 class="font-medium mb-2">Menu & Prep</h3>
-            <div class="flex gap-2 mb-2">
-              <select id="frailRecipeSelect" class="flex-1 p-2 border rounded"></select>
-              <input id="frailPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
-              <button data-addmenu="frail" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
-            </div>
-            <ul id="frailMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
-            <button data-genprep="frail" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
-            <div id="frailPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Catering -->
-      <div id="catering" class="page hidden bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Kitchen 2 — Catering</h2>
-        <div class="grid md:grid-cols-3 gap-4">
-          <div>
-            <h3 class="font-medium mb-2">Stock</h3>
-            <div class="flex gap-2 mb-2">
-              <input id="cateringItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-              <input id="cateringQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-              <input id="cateringPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-              <button data-add="catering" class="bg-green-600 text-white px-3 rounded">Add</button>
-            </div>
-            <ul id="cateringStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Recipes</h3>
-            <input id="cateringRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
-            <textarea id="cateringRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
-            <div class="flex gap-2 mb-2">
-              <button data-recipe-add="catering" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
-              <input id="cateringCsv" type="file" accept=".csv" class="text-sm" />
-              <button data-csv="catering" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
-            </div>
-            <div id="cateringRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Menu & Prep</h3>
-            <div class="flex gap-2 mb-2">
-              <select id="cateringRecipeSelect" class="flex-1 p-2 border rounded"></select>
-              <input id="cateringPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
-              <button data-addmenu="catering" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
-            </div>
-            <ul id="cateringMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
-            <button data-genprep="catering" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
-            <div id="cateringPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Kefi -->
-      <div id="kefi" class="page hidden bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Kitchen 3 — Kefi</h2>
-        <div class="grid md:grid-cols-3 gap-4">
-          <div>
-            <h3 class="font-medium mb-2">Stock</h3>
-            <div class="flex gap-2 mb-2">
-              <input id="kefiItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-              <input id="kefiQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-              <input id="kefiPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-              <button data-add="kefi" class="bg-green-600 text-white px-3 rounded">Add</button>
-            </div>
-            <ul id="kefiStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Recipes</h3>
-            <input id="kefiRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
-            <textarea id="kefiRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
-            <div class="flex gap-2 mb-2">
-              <button data-recipe-add="kefi" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
-              <input id="kefiCsv" type="file" accept=".csv" class="text-sm" />
-              <button data-csv="kefi" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
-            </div>
-            <div id="kefiRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Menu & Prep</h3>
-            <div class="flex gap-2 mb-2">
-              <select id="kefiRecipeSelect" class="flex-1 p-2 border rounded"></select>
-              <input id="kefiPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
-              <button data-addmenu="kefi" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
-            </div>
-            <ul id="kefiMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
-            <button data-genprep="kefi" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
-            <div id="kefiPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Frail FOH -->
-      <div id="frailFoh" class="page hidden bg-white p-4 rounded-lg shadow">
-        <h2 class="font-semibold mb-2">Kitchen 4 — Frail FOH</h2>
-        <div class="grid md:grid-cols-3 gap-4">
-          <div>
-            <h3 class="font-medium mb-2">Stock</h3>
-            <div class="flex gap-2 mb-2">
-              <input id="frailFohItem" placeholder="Item" class="flex-1 p-2 border rounded" />
-              <input id="frailFohQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
-              <input id="frailFohPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
-              <button data-add="frailFoh" class="bg-green-600 text-white px-3 rounded">Add</button>
-            </div>
-            <ul id="frailFohStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Recipes</h3>
-            <input id="frailFohRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
-            <textarea id="frailFohRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
-            <div class="flex gap-2 mb-2">
-              <button data-recipe-add="frailFoh" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
-              <input id="frailFohCsv" type="file" accept=".csv" class="text-sm" />
-              <button data-csv="frailFoh" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
-            </div>
-            <div id="frailFohRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
-          </div>
-
-          <div>
-            <h3 class="font-medium mb-2">Menu & Prep</h3>
-            <div class="flex gap-2 mb-2">
-              <select id="frailFohRecipeSelect" class="flex-1 p-2 border rounded"></select>
-              <input id="frailFohPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
-              <button data-addmenu="frailFoh" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
-            </div>
-            <ul id="frailFohMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
-            <button data-genprep="frailFoh" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
-            <div id="frailFohPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
-          </div>
-        </div>
-      </div>
-
-    </div>
+  <!-- Top nav / tabs -->
+  <div class="flex flex-wrap gap-2 justify-center mb-6">
+    <button class="tab-btn px-4 py-2 bg-indigo-600 text-white rounded" data-target="storeRoom">Store Room</button>
+    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frail">Kitchen 1 - Frail</button>
+    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="catering">Kitchen 2 - Catering</button>
+    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="kefi">Kitchen 3 - Kefi</button>
+    <button class="tab-btn px-4 py-2 bg-gray-200 rounded" data-target="frailFoh">Kitchen 4 - Frail FOH</button>
   </div>
 
-<script>
-/* -------------------------
-   IMPORTANT: paste your Firebase config below
-   ------------------------- */
+  <div id="content" class="space-y-6">
+    <!-- Low stock / shopping list -->
+    <div class="bg-white p-4 rounded-lg shadow">
+      <h2 class="font-semibold mb-2">Low Stock & Shopping List</h2>
+      <ul id="lowStockList" class="list-disc pl-6 space-y-1 text-red-600"></ul>
+    </div>
+
+    <!-- TRANSFER PANEL -->
+    <div class="bg-white p-4 rounded-lg shadow">
+      <h2 class="font-semibold mb-2">Transfer Stock</h2>
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-2 items-end">
+        <div>
+          <label class="text-sm font-medium">From</label>
+          <select id="transferFrom" class="w-full p-2 border rounded"></select>
+        </div>
+        <div>
+          <label class="text-sm font-medium">To</label>
+          <select id="transferTo" class="w-full p-2 border rounded"></select>
+        </div>
+        <div>
+          <label class="text-sm font-medium">Item</label>
+          <input id="transferItem" class="w-full p-2 border rounded" placeholder="Item name" />
+        </div>
+        <div>
+          <label class="text-sm font-medium">Quantity</label>
+          <input id="transferQty" type="number" min="1" value="1" class="w-full p-2 border rounded" />
+        </div>
+        <div>
+          <button id="transferBtn" class="w-full bg-blue-600 text-white px-4 py-2 rounded">Transfer</button>
+        </div>
+      </div>
+      <p id="transferMessage" class="text-sm mt-2 text-gray-600"></p>
+    </div>
+
+    <!-- Store Room -->
+    <div id="storeRoom" class="page bg-white p-4 rounded-lg shadow">
+      <h2 class="font-semibold mb-2">Store Room (Master Stock)</h2>
+      <div class="grid md:grid-cols-2 gap-4">
+        <div>
+          <h3 class="font-medium mb-2">Add / Update Stock</h3>
+          <div class="flex gap-2">
+            <input id="srItem" placeholder="Item" class="flex-1 p-2 border rounded" />
+            <input id="srQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
+            <input id="srPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
+            <button id="srAdd" class="bg-green-600 text-white px-4 rounded">Add</button>
+          </div>
+        </div>
+        <div>
+          <h3 class="font-medium mb-2">Store Room Stock</h3>
+          <ul id="srList" class="list-disc pl-6 space-y-1 max-h-48 overflow-auto"></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kitchens (frail, catering, kefi, frailFoh) -->
+    <!-- We'll only show frail template here; replicate for others if needed -->
+    <div id="frail" class="page hidden bg-white p-4 rounded-lg shadow">
+      <h2 class="font-semibold mb-2">Kitchen 1 — Frail</h2>
+      <div class="grid md:grid-cols-3 gap-4">
+        <!-- Stock -->
+        <div>
+          <h3 class="font-medium mb-2">Stock</h3>
+          <div class="flex gap-2 mb-2">
+            <input id="frailItem" placeholder="Item" class="flex-1 p-2 border rounded" />
+            <input id="frailQty" type="number" placeholder="Qty" class="w-28 p-2 border rounded" />
+            <input id="frailPrice" type="number" step="0.01" placeholder="Price (R)" class="w-28 p-2 border rounded" />
+            <button data-add="frail" class="bg-green-600 text-white px-3 rounded">Add</button>
+          </div>
+          <ul id="frailStock" class="list-disc pl-6 space-y-1 max-h-40 overflow-auto"></ul>
+        </div>
+        <!-- Recipes -->
+        <div>
+          <h3 class="font-medium mb-2">Recipes</h3>
+          <input id="frailRecipeName" placeholder="Recipe name" class="w-full p-2 border rounded mb-2" />
+          <textarea id="frailRecipeIngredients" placeholder="item:qty per line" class="w-full p-2 border rounded h-28 mb-2"></textarea>
+          <div class="flex gap-2 mb-2">
+            <button data-recipe-add="frail" class="bg-blue-600 text-white px-3 rounded">Add Recipe</button>
+            <input id="frailCsv" type="file" accept=".csv" class="text-sm" />
+            <button data-csv="frail" class="bg-orange-500 text-white px-3 rounded">Upload CSV</button>
+          </div>
+          <div id="frailRecipes" class="space-y-2 max-h-48 overflow-auto"></div>
+        </div>
+        <!-- Menu & Prep -->
+        <div>
+          <h3 class="font-medium mb-2">Menu & Prep</h3>
+          <div class="flex gap-2 mb-2">
+            <select id="frailRecipeSelect" class="flex-1 p-2 border rounded"></select>
+            <input id="frailPortions" type="number" min="1" value="1" class="w-28 p-2 border rounded" />
+            <button data-addmenu="frail" class="bg-purple-600 text-white px-3 rounded">Add to Menu</button>
+          </div>
+          <ul id="frailMenu" class="list-disc pl-6 space-y-1 mb-2 max-h-40 overflow-auto"></ul>
+          <button data-genprep="frail" class="bg-amber-500 text-white px-4 py-2 rounded w-full mb-2">Generate & Save Prep List</button>
+          <div id="frailPrepHistory" class="space-y-2 max-h-40 overflow-auto"></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase Modular SDK -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-app.js";
+import { getFirestore, doc, collection, setDoc, getDoc, onSnapshot, runTransaction, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/12.3.0/firebase-firestore.js";
+
+// ----------------- Firebase Config -----------------
 const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "YOUR_APP.firebaseapp.com",
-  projectId: "YOUR_APP",
-  storageBucket: "YOUR_APP.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcd1234"
+  apiKey: "AIzaSyDywp4wU8oiDypiQ5OydSfQuyx8xS2BerQ",
+  authDomain: "kitchen-stock-44799.firebaseapp.com",
+  projectId: "kitchen-stock-44799",
+  storageBucket: "kitchen-stock-44799.firebasestorage.app",
+  messagingSenderId: "320520731433",
+  appId: "1:320520731433:web:a69d9bc6fc1cb3959f5538",
+  measurementId: "G-11Q1S857RR"
 };
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
-/* Locations used in the UI and Firestore doc ids */
+// ----------------- Locations -----------------
 const LOCATIONS = ['storeRoom','frail','catering','kefi','frailFoh'];
+let stock = { storeRoom:{}, frail:{}, catering:{}, kefi:{}, frailFoh:{} };
+let prices = {};
+let recipes = { frail:[], catering:[], kefi:[], frailFoh:[] };
+let menu = { frail:[], catering:[], kefi:[], frailFoh:[] };
+const LOW_STOCK_THRESHOLD = 5; // alert if qty < 5
 
-/* In-memory copies (kept in sync with Firestore via listeners) */
-let stock = { storeRoom: {}, frail: {}, catering: {}, kefi: {}, frailFoh: {} };
-let prices = {}; // global price map keyed by item name
-let recipes = { frail: [], catering: [], kefi: [], frailFoh: [] };
-let menu = { frail: [], catering: [], kefi: [], frailFoh: [] };
+function $(id){ return document.getElementById(id); }
 
-/* -------------------------
-   Utility / startup
-   ------------------------- */
-function $(id){return document.getElementById(id);}
-
-/* Populate transfer dropdowns */
+// ----------------- Transfer dropdowns -----------------
 function populateTransferOptions(){
   const from = $('transferFrom');
   const to = $('transferTo');
-  from.innerHTML = LOCATIONS.map(l => `<option value="${l}">${locationLabel(l)}</option>`).join('');
-  to.innerHTML = LOCATIONS.map(l => `<option value="${l}">${locationLabel(l)}</option>`).join('');
+  from.innerHTML = LOCATIONS.map(l=>`<option value="${l}">${locationLabel(l)}</option>`).join('');
+  to.innerHTML = LOCATIONS.map(l=>`<option value="${l}">${locationLabel(l)}</option>`).join('');
 }
 function locationLabel(id){
   switch(id){
@@ -289,485 +163,4 @@ function locationLabel(id){
     case 'frail': return 'Kitchen 1 - Frail';
     case 'catering': return 'Kitchen 2 - Catering';
     case 'kefi': return 'Kitchen 3 - Kefi';
-    case 'frailFoh': return 'Kitchen 4 - Frail FOH';
-    default: return id;
-  }
-}
-
-/* Show pages / tabs */
-document.querySelectorAll('.tab-btn').forEach(btn=>{
-  btn.addEventListener('click', e=>{
-    const target = btn.dataset.target;
-    document.querySelectorAll('.page').forEach(p=>p.classList.add('hidden'));
-    $(target).classList.remove('hidden');
-    // styling
-    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('bg-indigo-600','text-white'));
-    btn.classList.add('bg-indigo-600','text-white');
-    // refresh selects when switching
-    refreshRecipeSelects();
-  });
-});
-
-/* Refresh recipe selects used when adding to menu */
-function refreshRecipeSelects(){
-  ['frail','catering','kefi','frailFoh'].forEach(k=>{
-    const sel = $(k+'RecipeSelect');
-    if(!sel) return;
-    sel.innerHTML = recipes[k].map((r,idx)=>`<option value="${idx}">${r.name}</option>`).join('') || '<option value="">No recipes</option>';
-  });
-}
-
-/* -------------------------
-   Firestore real-time listeners
-   - stock/{location}  (object of item: qty)
-   - prices/all        (object item: price)
-   - recipes/{kitchen} (doc: { recipes: [...] })
-   - menu/{kitchen}    (doc: { menu: [...] })
-   - prepLists         (collection) each doc stored with kitchenId, timestamp, items, menuSnapshot
-   ------------------------- */
-
-function listenStock(locationId){
-  db.collection('stock').doc(locationId).onSnapshot(doc=>{
-    if(doc.exists){
-      stock[locationId] = doc.data();
-    } else {
-      stock[locationId] = {};
-    }
-    renderStockUI(locationId);
-  });
-}
-function listenPrices(){
-  db.collection('prices').doc('all').onSnapshot(doc=>{
-    if(doc.exists) prices = doc.data(); else prices = {};
-    renderAllStockUI(); // price affects display
-  });
-}
-function listenRecipes(kitchen){
-  db.collection('recipes').doc(kitchen).onSnapshot(doc=>{
-    if(doc.exists && doc.data().recipes) recipes[kitchen] = doc.data().recipes;
-    else recipes[kitchen] = [];
-    renderRecipesUI(kitchen);
-    refreshRecipeSelects();
-  });
-}
-function listenMenu(kitchen){
-  db.collection('menu').doc(kitchen).onSnapshot(doc=>{
-    if(doc.exists && doc.data().menu) menu[kitchen] = doc.data().menu;
-    else menu[kitchen] = [];
-    renderMenuUI(kitchen);
-  });
-}
-function listenPrepLists(kitchen){
-  // Show last 20 prep lists for the kitchen
-  db.collection('prepLists').where('kitchenId','==',kitchen).orderBy('timestamp','desc').limit(20).onSnapshot(snap=>{
-    const container = $(kitchen+'PrepHistory');
-    if(!container) return;
-    container.innerHTML = '';
-    snap.forEach(doc=>{
-      const data = doc.data();
-      const time = new Date(data.timestamp).toLocaleString();
-      const div = document.createElement('div');
-      div.className='border p-2 rounded bg-gray-50';
-      div.innerHTML = `<div class="text-sm text-gray-600">Saved: ${time}</div>
-        <div class="font-semibold">${data.menuSummary || '(menu)'}</div>
-        <ul class="list-disc pl-6 text-sm mt-1">${Object.entries(data.items||{}).map(([it,qt])=>`<li>${it}: ${qt}</li>`).join('')}</ul>`;
-      container.appendChild(div);
-    });
-  });
-}
-
-/* Start listeners for all locations/kitchens */
-populateTransferOptions();
-LOCATIONS.forEach(loc => listenStock(loc));
-listenPrices();
-['frail','catering','kefi','frailFoh'].forEach(k=>{
-  listenRecipes(k);
-  listenMenu(k);
-  listenPrepLists(k);
-});
-
-/* -------------------------
-   Rendering helpers
-   ------------------------- */
-function renderStockUI(locationId){
-  const mapping = {
-    storeRoom:'srList',
-    frail:'frailStock',
-    catering:'cateringStock',
-    kefi:'kefiStock',
-    frailFoh:'frailFohStock'
-  };
-  const listId = mapping[locationId];
-  if(!listId) return;
-  const container = $(listId);
-  container.innerHTML = '';
-  const items = stock[locationId] || {};
-  Object.keys(items).sort().forEach(item=>{
-    const li = document.createElement('li');
-    const priceStr = prices[item] ? ` — R${Number(prices[item]).toFixed(2)}` : '';
-    li.textContent = `${item}: ${items[item]}${priceStr}`;
-    container.appendChild(li);
-  });
-}
-function renderAllStockUI(){
-  LOCATIONS.forEach(renderStockUI);
-}
-function renderRecipesUI(kitchenId){
-  const mapping = { frail:'frailRecipes', catering:'cateringRecipes', kefi:'kefiRecipes', frailFoh:'frailFohRecipes' };
-  const container = $(mapping[kitchenId]);
-  if(!container) return;
-  container.innerHTML = '';
-  recipes[kitchenId].forEach((r,idx)=>{
-    const div = document.createElement('div');
-    div.className='border p-2 rounded bg-gray-50';
-    const ingredientsHtml = Object.entries(r.ingredients||{}).map(([it,qt])=>{
-      const avail = stock[kitchenId][it] || 0;
-      const color = avail >= qt ? 'text-green-600' : 'text-red-600';
-      const cost = prices[it] ? `R${(prices[it]*qt).toFixed(2)}` : 'R0.00';
-      return `<li class="${color} flex justify-between"><span>${it} (${qt})</span><span class="text-sm">${cost}</span></li>`;
-    }).join('');
-    div.innerHTML = `<div class="flex justify-between items-center"><strong>${r.name}</strong>
-      <button class="text-red-500 text-sm" onclick="deleteRecipe('${kitchenId}',${idx})">Delete</button></div>
-      <ul class="list-disc pl-6 mt-1">${ingredientsHtml}</ul>`;
-    container.appendChild(div);
-  });
-  // update recipe select
-  refreshRecipeSelects();
-}
-function renderMenuUI(kitchenId){
-  const mapping = { frail:'frailMenu', catering:'cateringMenu', kefi:'kefiMenu', frailFoh:'frailFohMenu' };
-  const container = $(mapping[kitchenId]);
-  if(!container) return;
-  container.innerHTML = '';
-  menu[kitchenId].forEach((m, idx)=>{
-    const li = document.createElement('li');
-    li.className = 'flex justify-between';
-    li.innerHTML = `<span>${m.recipeName} x ${m.qty}</span>
-      <div class="flex gap-2"><button class="text-sm text-red-500" onclick="removeMenuItem('${kitchenId}',${idx})">Remove</button></div>`;
-    container.appendChild(li);
-  });
-}
-
-/* -------------------------
-   CRUD / Save functions (Firestore)
-   ------------------------- */
-async function saveStock(locationId){
-  await db.collection('stock').doc(locationId).set(stock[locationId] || {});
-  // also save prices globally
-  await db.collection('prices').doc('all').set(prices || {});
-}
-async function saveRecipes(kitchenId){
-  await db.collection('recipes').doc(kitchenId).set({ recipes: recipes[kitchenId] || [] });
-}
-async function saveMenu(kitchenId){
-  await db.collection('menu').doc(kitchenId).set({ menu: menu[kitchenId] || [] });
-}
-
-/* -------------------------
-   Add / Delete UI actions
-   ------------------------- */
-
-/* Store Room add */
-$('srAdd').addEventListener('click', async ()=>{
-  const item = $('srItem').value.trim();
-  const qty = parseFloat($('srQty').value);
-  const price = parseFloat($('srPrice').value);
-  if(!item || isNaN(qty) || isNaN(price)){ alert('Please enter item, qty and price'); return; }
-  if(!stock.storeRoom[item]) stock.storeRoom[item] = 0;
-  stock.storeRoom[item] += qty;
-  prices[item] = price;
-  await saveStock('storeRoom');
-  $('srItem').value=''; $('srQty').value=''; $('srPrice').value='';
-});
-
-/* Generic add stock for kitchens (buttons with data-add attribute) */
-document.querySelectorAll('[data-add]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const k = btn.dataset.add;
-    const item = $(k+'Item').value.trim();
-    const qty = parseFloat($(k+'Qty').value);
-    const price = parseFloat($(k+'Price').value);
-    if(!item || isNaN(qty) || isNaN(price)){ alert('Please enter item, qty and price'); return; }
-    if(!stock[k][item]) stock[k][item] = 0;
-    stock[k][item] += qty;
-    prices[item] = price;
-    await saveStock(k);
-    $(k+'Item').value=''; $(k+'Qty').value=''; $(k+'Price').value='';
-  });
-});
-
-/* Add recipe per kitchen */
-document.querySelectorAll('[data-recipe-add]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const k = btn.dataset.recipeAdd;
-    const name = $(k+'RecipeName').value.trim();
-    const ingText = $(k+'RecipeIngredients').value.trim();
-    if(!name || !ingText){ alert('Enter recipe name and ingredients'); return; }
-    const ingObj = {};
-    ingText.split('\n').forEach(line=>{
-      const parts = line.split(':').map(s=>s.trim());
-      if(parts.length===2 && parts[0] && parts[1]) ingObj[parts[0]] = Number(parts[1]);
-    });
-    recipes[k].push({ name, ingredients: ingObj });
-    await saveRecipes(k);
-    $(k+'RecipeName').value=''; $(k+'RecipeIngredients').value='';
-  });
-});
-
-/* CSV upload handler for recipes */
-document.querySelectorAll('[data-csv]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const k = btn.dataset.csv;
-    const fileInput = $(k+'Csv');
-    if(!fileInput.files.length){ alert('Choose CSV file'); return; }
-    const file = fileInput.files[0];
-    const text = await file.text();
-    // CSV format: Recipe Name,Ingredients (Ingredients separated by ; and each item:qty)
-    const lines = text.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-    // if header present (detect by checking first line contains 'Recipe' or 'Ingredients'), skip possible header
-    if(lines.length && /recipe/i.test(lines[0]) && /ingredient/i.test(lines[0])) lines.shift();
-    lines.forEach(line=>{
-      const parts = splitCSVLine(line);
-      if(!parts || parts.length < 2) return;
-      const name = parts[0].trim().replace(/(^"|"$)/g,'');
-      const ingStr = parts[1].trim().replace(/(^"|"$)/g,'');
-      const ingPairs = ingStr.split(';').map(s=>s.trim()).filter(Boolean);
-      const ingObj = {};
-      ingPairs.forEach(p=>{
-        const [it,qt] = p.split(':').map(s=>s.trim());
-        if(it && qt) ingObj[it] = Number(qt);
-      });
-      if(name) recipes[k].push({ name, ingredients: ingObj });
-    });
-    await saveRecipes(k);
-    fileInput.value='';
-  });
-});
-
-/* Helper to split CSV line robustly (handles commas inside quotes minimally) */
-function splitCSVLine(line){
-  // quick parser for two columns max: RecipeName,Ingredients
-  // if contains quotes, handle them
-  if(!line) return null;
-  if(line.includes('"')){
-    // find first comma outside quotes
-    let inQ=false;
-    for(let i=0;i<line.length;i++){
-      const ch=line[i];
-      if(ch==='"') inQ=!inQ;
-      if(ch===',' && !inQ){
-        return [line.slice(0,i), line.slice(i+1)];
-      }
-    }
-    return [line]; // fallback
-  } else {
-    const idx = line.indexOf(',');
-    if(idx===-1) return [line];
-    return [line.slice(0,idx), line.slice(idx+1)];
-  }
-}
-
-/* Delete recipe */
-async function deleteRecipe(kitchen, idx){
-  if(!confirm('Delete recipe?')) return;
-  recipes[kitchen].splice(idx,1);
-  await saveRecipes(kitchen);
-}
-
-/* -------------------------
-   Menu actions
-   ------------------------- */
-/* add to menu (kitchen-specific) via buttons with data-addmenu attr */
-document.querySelectorAll('[data-addmenu]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const k = btn.dataset.addmenu;
-    const sel = $(k+'RecipeSelect');
-    const idx = Number(sel.value);
-    if(isNaN(idx) || !recipes[k][idx]){ alert('Choose recipe'); return; }
-    const portions = Number($(k+'Portions').value) || 1;
-    const recipeName = recipes[k][idx].name;
-    menu[k].push({ recipeName, qty: portions });
-    await saveMenu(k);
-    $(k+'Portions').value = 1;
-  });
-});
-
-/* remove item from menu */
-async function removeMenuItem(kitchen, idx){
-  if(!menu[kitchen] || !menu[kitchen][idx]) return;
-  menu[kitchen].splice(idx,1);
-  await saveMenu(kitchen);
-}
-
-/* -------------------------
-   Transfer (transaction-safe)
-   ------------------------- */
-$('transferBtn').addEventListener('click', async ()=>{
-  const from = $('transferFrom').value;
-  const to = $('transferTo').value;
-  const item = $('transferItem').value.trim();
-  const qty = Number($('transferQty').value);
-  $('transferMessage').textContent = '';
-  if(!from || !to || !item || isNaN(qty) || qty <= 0){ $('transferMessage').textContent = 'Fill all transfer fields.'; return; }
-  if(from === to){ $('transferMessage').textContent = 'Choose different From/To'; return; }
-
-  try{
-    await db.runTransaction(async tx => {
-      const fromRef = db.collection('stock').doc(from);
-      const toRef = db.collection('stock').doc(to);
-      const pRef = db.collection('prices').doc('all');
-
-      const fromDoc = await tx.get(fromRef);
-      const toDoc = await tx.get(toRef);
-      const pDoc = await tx.get(pRef);
-
-      const fromData = fromDoc.exists ? fromDoc.data() : {};
-      const toData = toDoc.exists ? toDoc.data() : {};
-      const pData = pDoc.exists ? pDoc.data() : {};
-
-      const available = Number(fromData[item] || 0);
-      if(available < qty) throw new Error(`Not enough ${item} in ${locationLabel(from)} (have ${available})`);
-
-      // update quantities
-      fromData[item] = available - qty;
-      if(fromData[item] <= 0) delete fromData[item];
-
-      toData[item] = Number(toData[item] || 0) + qty;
-
-      // if price provided in either, keep it; keep whatever is in pData
-      // no change to prices here (if transferring, price doesn't change)
-      tx.set(fromRef, fromData);
-      tx.set(toRef, toData);
-      tx.set(pRef, pData || {}); // no change but ensure exists
-    });
-
-    $('transferMessage').textContent = `Transferred ${qty} ${item} from ${locationLabel(from)} to ${locationLabel(to)}.`;
-  } catch(err){
-    $('transferMessage').textContent = 'Transfer failed: ' + err.message;
-  }
-});
-
-/* -------------------------
-   Prep list generation & saving
-   ------------------------- */
-document.querySelectorAll('[data-genprep]').forEach(btn=>{
-  btn.addEventListener('click', async ()=>{
-    const kitchen = btn.dataset.genprep;
-    await generateAndSavePrep(kitchen);
-  });
-});
-
-async function generateAndSavePrep(kitchenId){
-  // Build totals from menu
-  const totals = {};
-  for(const m of menu[kitchenId] || []){
-    const recipe = recipes[kitchenId].find(r=>r.name === m.recipeName);
-    if(!recipe) continue;
-    for(const [it,qt] of Object.entries(recipe.ingredients || {})){
-      totals[it] = (totals[it] || 0) + (qt * m.qty);
-    }
-  }
-  if(Object.keys(totals).length === 0){ alert('Menu empty or no matching recipes'); return; }
-
-  // Optionally, check for shortfalls before saving
-  const shortfalls = [];
-  for(const [it,need] of Object.entries(totals)){
-    const have = Number(stock[kitchenId][it] || 0);
-    if(have < need) shortfalls.push(`${it}: need ${need}, have ${have}`);
-  }
-  if(shortfalls.length){
-    if(!confirm('There are shortfalls:\n' + shortfalls.join('\n') + '\n\nContinue and still save prep list?')) return;
-  }
-
-  // Save prep list doc
-  const docRef = db.collection('prepLists').doc(); // auto-id
-  const data = {
-    kitchenId,
-    timestamp: new Date().toISOString(),
-    items: totals,
-    menuSnapshot: JSON.parse(JSON.stringify(menu[kitchenId]||[])),
-    menuSummary: (menu[kitchenId]||[]).map(m => `${m.recipeName}x${m.qty}`).join(', ')
-  };
-  await docRef.set(data);
-
-  // Optionally deduct stock for items that exist (we will deduct what we can)
-  // We'll run a transaction to deduct from kitchen stock (but we won't touch storeRoom)
-  try{
-    await db.runTransaction(async tx=>{
-      const stockRef = db.collection('stock').doc(kitchenId);
-      const stockDoc = await tx.get(stockRef);
-      const curStock = stockDoc.exists ? stockDoc.data() : {};
-      // Deduct only where available; negative will be set to 0 and not made negative
-      for(const [it,need] of Object.entries(totals)){
-        const have = Number(curStock[it] || 0);
-        const deduct = Math.min(have, need);
-        curStock[it] = have - deduct;
-        if(curStock[it] <= 0) delete curStock[it];
-        // we do not attempt to auto-pull from storeRoom in this automatic deduction
-      }
-      tx.set(stockRef, curStock);
-    });
-  } catch(err){
-    console.error('Failed deducting stock on prep save', err);
-  }
-
-  alert('Prep list saved.');
-}
-
-/* -------------------------
-   Load initial data on page open (also handled by listeners)
-   ------------------------- */
-// ensure docs exist (if absent) by setting empty docs; listeners will pick them up
-async function ensureDocs() {
-  // create empty stock docs if missing
-  for(const loc of LOCATIONS){
-    const ref = db.collection('stock').doc(loc);
-    const snap = await ref.get();
-    if(!snap.exists) await ref.set({});
-  }
-  const pRef = db.collection('prices').doc('all');
-  if(!(await pRef.get()).exists) await pRef.set({});
-  for(const k of ['frail','catering','kefi','frailFoh']){
-    const rRef = db.collection('recipes').doc(k);
-    if(!(await rRef.get()).exists) await rRef.set({ recipes: [] });
-    const mRef = db.collection('menu').doc(k);
-    if(!(await mRef.get()).exists) await mRef.set({ menu: [] });
-  }
-}
-ensureDocs().catch(console.error);
-
-/* -------------------------
-   Listeners for UI updates triggered by Firestore listeners
-   ------------------------- */
-function renderAll(){
-  renderAllStockUI();
-  ['frail','catering','kefi','frailFoh'].forEach(k=>{
-    renderRecipesUI(k);
-    renderMenuUI(k);
-  });
-}
-renderAll(); // initial attempt
-
-/* -------------------------
-   Delete & utility functions (exposed)
-   ------------------------- */
-window.deleteRecipe = async function(k, idx){
-  if(!confirm('Delete this recipe?')) return;
-  recipes[k].splice(idx,1);
-  await saveRecipes(k);
-};
-window.removeMenuItem = async function(k, idx){
-  if(!confirm('Remove this menu item?')) return;
-  menu[k].splice(idx,1);
-  await saveMenu(k);
-};
-
-/* Refresh recipe selects at start */
-refreshRecipeSelects();
-
-/* Show Store Room by default */
-document.querySelectorAll('.tab-btn')[0].click();
-
-</script>
-</body>
-</html>
+    case 'frailFoh': return '
